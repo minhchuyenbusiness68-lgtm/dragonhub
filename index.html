@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="vi"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -221,6 +221,9 @@ body{letter-spacing:-.003em}
 .tt{margin:22px 0 0;font-size:13px;font-weight:600;color:var(--gold-deep)}
 .cov{margin:14px 0 0;text-align:center;font-size:12.5px;color:var(--muted)}
 
+/* app-like: no zoom, no rubber-band, no text selection */
+html{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+body{overscroll-behavior:none;-webkit-user-select:none;user-select:none}
 /* passcode lock */
 .lock{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px}
 .lock img{height:60px;width:auto}
@@ -684,6 +687,8 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 /* ---------- start ---------- */
+['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
+let lastTap=0;document.addEventListener('touchend',e=>{const n=Date.now();if(n-lastTap<350)e.preventDefault();lastTap=n;},{passive:false});
 const back=handleReturn();
 paint();
 if(!back)showLock(hasPin()?'enter':'set1',startSplash);
