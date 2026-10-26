@@ -640,10 +640,17 @@ const PL={l:6,r:48,t:8,b:22};
 const OV={h:46,pad:9};
 const C={g:null,defs:[],days:[],dates:[],lo:0,hi:0,preset:'30',off:{},cur:null,ov:0};
 function chartDefs(g,D){
-  const one=(title,unit,map,col,dec,extra)=>Object.assign({title:title,unit:unit,dec:dec||0,series:[{name:title,map:map,col:col,color:'#8F6D2E'}]},extra||{});
-  if(g==='ceo')return [one('Trang sách','trang',D.ceo,1),one('Km chạy','km',D.ceo,2,1),one('Set tập','set',D.ceo,3)];
-  if(g==='sale')return [one('Cuộc gọi','cuộc',D.sale,2,0,{std:{name:'Tiêu chuẩn',map:D.sale,col:1}}),one('Khách quan tâm mới','khách',D.sale,3),one('Cuộc hẹn','cuộc',D.sale,4)];
-  return [{title:'Thu chi và dòng tiền',unit:'đồng',money:true,dec:0,series:FINCOL.map(f=>({name:f[0],map:D.flow,col:f[1],color:f[2]}))}];
+  const B='#3D6FD8',O='#E8920C',R='#D2452F',G='#2E9A4F';
+  if(g==='ceo')return [{title:'Số liệu CEO',unit:'',dec:0,ov:0,series:[
+    {name:'Số trang sách đọc',map:D.ceo,col:1,color:B,unit:'trang',dec:0},
+    {name:'Số set tập',map:D.ceo,col:3,color:O,unit:'set',dec:0},
+    {name:'Số km chạy',map:D.ceo,col:2,color:R,unit:'km',dec:1}]}];
+  if(g==='sale')return [{title:'Số liệu Sale',unit:'',dec:0,ov:1,series:[
+    {name:'Tiêu chuẩn',map:D.sale,col:1,color:B,unit:'cuộc',dec:0,step:true},
+    {name:'Cuộc gọi thực thi',map:D.sale,col:2,color:R,unit:'cuộc',dec:0},
+    {name:'KH quan tâm',map:D.sale,col:3,color:O,unit:'khách',dec:0},
+    {name:'Cuộc gặp',map:D.sale,col:4,color:G,unit:'cuộc',dec:0}]}];
+  return [{title:'Thu chi và dòng tiền',unit:'đồng',money:true,dec:0,ov:1,series:FINCOL.map(f=>({name:f[0],map:D.flow,col:f[1],color:f[2]}))}];
 }
 function keyDate(k){const a=k.split('-');return new Date(+a[0],+a[1]-1,+a[2]);}
 function timeline(defs,t){
@@ -659,7 +666,7 @@ function valsFor(s,days){return days.map(d=>{const r=s.map.get(d);return r?parse
 function xLabel(d,span){return span>150?pad(d.getMonth()+1)+'/'+String(d.getFullYear()).slice(2):fmtDM(d);}
 function pathOf(seg,X,Y){return seg.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');}
 function stepOf(seg,X,Y){let d='',py='';seg.forEach((p,k)=>{const x=X(p[0]).toFixed(1),y=Y(p[1]).toFixed(1);d+=k?('L'+x+' '+py+'L'+x+' '+y):('M'+x+' '+y);py=y;});return d;}
-function fmtVal(def,v){return def.money?fmtN(v,0)+' đ':fmtN(v,def.dec)+' '+def.unit;}
+function fmtVal(def,v,s){if(def.money)return fmtN(v,0)+' đ';const u=s&&s.unit!=null?s.unit:def.unit,d=s&&s.dec!=null?s.dec:def.dec;return fmtN(v,d)+' '+u;}
 function tipRow(color,name,val){return '<div class="r"><i style="background:'+color+'"></i>'+(name?esc(name)+' ':'')+'<b>'+val+'</b></div>';}
 function drawPlot(i){
   const def=C.defs[i],el=document.getElementById('plot-'+i);
@@ -684,8 +691,8 @@ function drawPlot(i){
   act.forEach(o=>{
     segments(o.s.vals,lo,hi).forEach(sg=>{
       if(sg.length===1){s+='<circle cx="'+X(sg[0][0]).toFixed(1)+'" cy="'+Y(sg[0][1]).toFixed(1)+'" r="2.6" fill="'+o.s.color+'"/>';return;}
-      const d=pathOf(sg,X,Y);
-      if(!def.money)s+='<path d="'+d+'L'+X(sg[sg.length-1][0]).toFixed(1)+' '+Y(0).toFixed(1)+'L'+X(sg[0][0]).toFixed(1)+' '+Y(0).toFixed(1)+'Z" fill="'+o.s.color+'" fill-opacity=".10"/>';
+      const d=o.s.step?stepOf(sg,X,Y):pathOf(sg,X,Y);
+      if(!def.money&&def.series.length===1)s+='<path d="'+d+'L'+X(sg[sg.length-1][0]).toFixed(1)+' '+Y(0).toFixed(1)+'L'+X(sg[0][0]).toFixed(1)+' '+Y(0).toFixed(1)+'Z" fill="'+o.s.color+'" fill-opacity=".10"/>';
       s+='<path d="'+d+'" fill="none" stroke="'+o.s.color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
     });
   });
@@ -698,7 +705,7 @@ function drawPlot(i){
       const v=o.s.vals[j];
       if(v!=null){
         s+='<circle cx="'+x.toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="4" fill="#fff" stroke="'+o.s.color+'" stroke-width="2"/>';
-        rows+=tipRow(o.s.color,names?o.s.name:'',fmtVal(def,v));
+        rows+=tipRow(o.s.color,names?o.s.name:'',fmtVal(def,v,o.s));
       }
     });
     if(def.std){const v=def.std.vals[j];if(v!=null)rows+=tipRow('#A89C80',def.std.name,fmtVal(def,v));}
@@ -765,7 +772,7 @@ function initCharts(){
   const n=FLAT[S.sel];if(!n||!n.g)return;
   const defs=chartDefs(n.g,S.data),tl=timeline(defs,today());
   if(C.g!==n.g){C.off={};C.preset='30';C.cur=null;}
-  C.g=n.g;C.defs=defs;C.days=tl.days;C.dates=tl.dates;C.ov=n.g==='fin'?1:0;
+  C.g=n.g;C.defs=defs;C.days=tl.days;C.dates=tl.dates;C.ov=defs[0].ov||0;
   if(!C.days.length){host.innerHTML='<div class="empty"><div class="h3">Chưa có số liệu</div><p class="muted small" style="margin-top:6px">Chưa có ngày nào có số để vẽ biểu đồ.</p></div>';return;}
   defs.forEach(c=>{c.series.forEach(s=>{s.vals=valsFor(s,C.days);});if(c.std)c.std.vals=valsFor(c.std,C.days);});
   const total=C.days.length;
