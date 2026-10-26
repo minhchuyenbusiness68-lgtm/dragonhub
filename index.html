@@ -220,6 +220,23 @@ body{letter-spacing:-.003em}
 .kv b{font-weight:600}
 .tt{margin:22px 0 0;font-size:13px;font-weight:600;color:var(--gold-deep)}
 .cov{margin:14px 0 0;text-align:center;font-size:12.5px;color:var(--muted)}
+
+/* passcode lock */
+.lock{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px}
+.lock img{height:60px;width:auto}
+.lock .lt{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.lock .ls{font-size:13px;color:var(--muted);margin-top:-8px;min-height:18px;text-align:center}
+.lock .ls.bad{color:var(--bad)}
+.dots{display:flex;gap:14px;margin:4px 0 8px}
+.dots i{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--gold-deep)}
+.dots i.on{background:var(--gold-deep)}
+.dots.shake{animation:shk .35s}
+@keyframes shk{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.kp{display:grid;grid-template-columns:repeat(3,76px);gap:14px 22px}
+.kp button{width:76px;height:76px;border-radius:50%;border:0;background:#F4F0E6;font-size:28px;color:var(--ink);-webkit-tap-highlight-color:transparent}
+.kp button:active{background:var(--gold)}
+.kp .gh{background:none;font-size:22px;color:var(--muted)}
+.kp .gh:active{background:none}
 </style>
 
 </head><body>
@@ -349,7 +366,7 @@ function tokenGet(){
 }
 function login(silent){
   const st=Math.random().toString(36).slice(2)+Date.now().toString(36);
-  ss.set('dh_st',st);ss.set('dh_ret',S.view);
+  ss.set('dh_st',st);ss.set('dh_ret',S.view);ss.set('dh_nolock','1');
   const p=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIR,response_type:'token',scope:SCOPE,state:st,include_granted_scopes:'true'});
   if(silent)p.set('prompt','none');
   location.href='https://accounts.google.com/o/oauth2/v2/auth?'+p.toString();
@@ -368,7 +385,7 @@ function handleReturn(){
   }else if(p.get('error')){
     ss.set('dh_silent','1');
   }
-  ss.del('dh_st');
+  ss.del('dh_st');ss.del('dh_nolock');
   return true;
 }
 async function getValues(id,range){
@@ -597,10 +614,79 @@ function startSplash(){
   setTimeout(kill,3700);
 }
 
+
+/* ---------- passcode lock ---------- */
+const PINK='dh_pin',FAILK='dh_fail';
+const hasPin=()=>{try{const p=JSON.parse(ls.get(PINK)||'null');return !!(p&&p.s&&p.h);}catch(e){return false;}};
+const u8=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0));
+const b64=buf=>btoa(String.fromCharCode.apply(null,new Uint8Array(buf)));
+async function hashPin(pin,salt){
+  const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveBits']);
+  return b64(await crypto.subtle.deriveBits({name:'PBKDF2',salt:salt,iterations:150000,hash:'SHA-256'},k,256));
+}
+let lockEl=null,lockCb=null;
+function showLock(mode,cb){
+  if(!(window.crypto&&crypto.subtle)){if(cb)cb();return;}
+  if(lockEl){lockCb=cb||lockCb;return;}
+  lockCb=cb||null;
+  let m=mode,buf='',first='',msg='',bad=false,busy=false;
+  const el=document.createElement('div');el.className='lock';el.setAttribute('role','dialog');el.setAttribute('aria-label','Nhập mã');
+  lockEl=el;document.body.appendChild(el);
+  const titles={set1:'Tạo mã 6 số cho app',set2:'Nhập lại mã để xác nhận',enter:'Nhập mã'};
+  const draw=()=>{
+    el.innerHTML='<img src="'+LOGO_SRC+'" alt="">'+
+      '<div class="lt">'+titles[m]+'</div><div class="ls'+(bad?' bad':'')+'">'+esc(msg)+'</div>'+
+      '<div class="dots" id="dots">'+[0,1,2,3,4,5].map(i=>'<i class="'+(i<buf.length?'on':'')+'"></i>').join('')+'</div>'+
+      '<div class="kp">'+[1,2,3,4,5,6,7,8,9].map(n=>'<button type="button" data-k="'+n+'" aria-label="'+n+'">'+n+'</button>').join('')+
+      '<button type="button" class="gh" disabled></button><button type="button" data-k="0" aria-label="0">0</button><button type="button" class="gh" data-k="del" aria-label="Xóa">⌫</button></div>';
+  };
+  const shake=t=>{msg=t;bad=true;buf='';draw();const d=el.querySelector('#dots');if(d){d.classList.add('shake');}};
+  const done=()=>{document.removeEventListener('keydown',kd);el.remove();lockEl=null;const c=lockCb;lockCb=null;if(c)c();};
+  async function submit(){
+    busy=true;
+    try{
+      if(m==='set1'){first=buf;buf='';m='set2';msg='';bad=false;draw();}
+      else if(m==='set2'){
+        if(buf!==first){m='set1';first='';shake('Hai lần chưa khớp. Tạo lại mã.');}
+        else{
+          const salt=crypto.getRandomValues(new Uint8Array(16));
+          ls.set(PINK,JSON.stringify({s:b64(salt),h:await hashPin(buf,salt)}));
+          done();return;
+        }
+      }else{
+        let f={n:0,until:0};try{f=JSON.parse(ls.get(FAILK)||'null')||f;}catch(e){}
+        const wait=Math.ceil((f.until-Date.now())/1000);
+        if(wait>0){shake('Thử lại sau '+wait+' giây');busy=false;return;}
+        const p=JSON.parse(ls.get(PINK));
+        if(await hashPin(buf,u8(p.s))===p.h){ls.del(FAILK);done();return;}
+        f.n=(f.n||0)+1;
+        if(f.n>=5)f.until=Date.now()+Math.min(900,30*Math.pow(2,f.n-5))*1000;
+        ls.set(FAILK,JSON.stringify(f));
+        shake(f.n>=5?'Sai nhiều lần. Chờ một lúc rồi thử lại.':'Mã chưa đúng');
+      }
+    }catch(e){shake('Có lỗi, thử lại');}
+    busy=false;
+  }
+  function key(k){
+    if(busy)return;
+    if(k==='del'){buf=buf.slice(0,-1);}
+    else if(buf.length<6){if(bad){bad=false;msg='';}buf+=k;}
+    draw();
+    if(buf.length===6)submit();
+  }
+  function kd(e){if(/^\d$/.test(e.key))key(e.key);else if(e.key==='Backspace')key('del');}
+  el.addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b)key(b.dataset.k);});
+  document.addEventListener('keydown',kd);
+  draw();
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'&&hasPin()&&!lockEl&&!ss.get('dh_nolock'))showLock('enter',null);
+});
+
 /* ---------- start ---------- */
 const back=handleReturn();
 paint();
-if(!back)startSplash();
+if(!back)showLock(hasPin()?'enter':'set1',startSplash);
 if(S.view==='report')loadData(false);
 })();
 </script>
