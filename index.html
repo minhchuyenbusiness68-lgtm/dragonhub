@@ -557,7 +557,8 @@ function reportFor(g){
   const pw=prevWindow(p,S.off,t);
   const cov=(map,col)=>sumRange(map,col,p.s,n).cnt;
   const cmp=(map,col)=>pw.n>0?sumRange(map,col,pw.s,pw.n).sum:null;
-  const gap=c=>'<p class="cov">Số liệu '+c+'/'+n+' ngày</p>';
+  const tot=daysBetween(p.s,p.e)+1;
+  const gap=c=>'<p class="cov">Số liệu '+c+'/'+tot+' ngày</p>';
   const base={elapsed:n,mode:S.mode};
   const wk=(daysBetween(p.s,p.e)+1)/7;
   const T=k=>S.mode==='day'?DAY[k]:WK[k]*wk;
