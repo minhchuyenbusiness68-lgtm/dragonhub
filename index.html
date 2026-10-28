@@ -722,14 +722,14 @@ function countdownHTML(){
   return '<section class="cd" aria-label="Số ngày còn lại"><div class="cd-r"><div class="cd-n">'+left+'</div><div class="cd-t"><div class="cd-k"><i></i>Days left</div><div class="cd-s">until 31 Dec '+end.getFullYear()+'</div></div></div><div class="cd-b"><b style="width:'+pc+'%"></b></div><div class="cd-f"><span>Day '+day+' of '+tot+'</span><span>'+pc+'% of the year gone</span></div></section>';
 }
 function ceoHTML(){
-  const D=S.data,rows=[['Trang sách',ytdSum(D.ceo,1),YT.book,'#3D6FD8',0],['Km chạy',ytdSum(D.ceo,2),YT.run,'#D2452F',1],['Set tập',ytdSum(D.ceo,3),YT.sets,'#E8920C',0]];
+  const D=S.data,rows=[['Trang sách',ytdSum(D.ceo,1),YT.book,'#AFC0DE',0],['Km chạy',ytdSum(D.ceo,2),YT.run,'#E0B0A5',1],['Set tập',ytdSum(D.ceo,3),YT.sets,'#E8CB99',0]];
   return '<section class="hp" aria-label="CEO"><div class="hp-h"><div class="hp-t">CEO</div></div>'+rows.map(r=>{
     const p=Math.round(r[1]/r[2]*100),w=Math.max(0,Math.min(100,p)),left=Math.max(0,r[2]-r[1]);
     const done=fmtN(r[1],r[4]),rem=fmtN(left,r[4]);
     const inD=w>=22;
     return '<div class="rw"><span>'+r[0]+'</span><div class="tr"><b style="width:'+w+'%;background:'+r[3]+'"></b>'+
-      '<em style="left:'+(inD?'9px':'calc('+w+'% + 7px)')+';color:'+(inD?'#fff':'#2B2314')+'">'+done+'</em>'+
-      '<em style="right:9px;color:'+(w>=80?'#fff':'#8A8068')+'">'+rem+'</em></div><span class="pc2">'+p+'%</span></div>';
+      '<em style="left:'+(inD?'9px':'calc('+w+'% + 7px)')+';color:#2B2314">'+done+'</em>'+
+      '<em style="right:9px;color:'+(w>=80?'#2B2314':'#8A8068')+'">'+rem+'</em></div><span class="pc2">'+p+'%</span></div>';
   }).join('')+'</section>';
 }
 function revHTML(){
