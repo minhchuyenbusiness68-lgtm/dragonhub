@@ -505,12 +505,13 @@ function tokenGet(){
 }
 function login(silent){
   const st=Math.random().toString(36).slice(2)+Date.now().toString(36);
-  ss.set('dh_st',st);ss.set('dh_ret',S.view);ss.set('dh_nolock','1');
+  ss.set('dh_st',st);ss.set('dh_ret',S.view);ss.set('dh_nolock','1');ss.set('dh_pre',lockEl?'0':'1');
   const p=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIR,response_type:'token',scope:SCOPE,state:st,include_granted_scopes:'true'});
   if(silent)p.set('prompt','none');
   location.href='https://accounts.google.com/o/oauth2/v2/auth?'+p.toString();
 }
 /* returns true when the page is coming back from Google */
+let retPre=null;
 function handleReturn(){
   const h=location.hash||'';
   if(!/access_token=|error=/.test(h))return false;
@@ -524,6 +525,7 @@ function handleReturn(){
   }else if(p.get('error')){
     ss.set('dh_silent','1');
   }
+  retPre=ss.get('dh_pre');ss.del('dh_pre');
   ss.del('dh_st');ss.del('dh_nolock');
   return true;
 }
@@ -1130,7 +1132,7 @@ document.addEventListener('visibilitychange',()=>{
 let lastTap=0;document.addEventListener('touchend',e=>{if(e.target.closest&&e.target.closest('.lock'))return;const n=Date.now();if(n-lastTap<350)e.preventDefault();lastTap=n;},{passive:false});
 const back=handleReturn();
 paint();
-if(!back)showLock(hasPin()?'enter':'set1',startSplash);
+if(!back||retPre!=='1')showLock(hasPin()?'enter':'set1',startSplash);
 if(S.view==='report'||S.view==='home')loadData(false);
 })();
 </script>
