@@ -255,15 +255,15 @@ body{position:fixed;inset:0;width:100%;min-height:0}
 .home{display:flex;flex-direction:column;gap:8px;margin-top:10px;overflow:hidden}
 .cd{flex:none;border-radius:16px;padding:12px 16px 12px;color:#F3E9D2;background:radial-gradient(120% 140% at 100% 0,rgba(210,69,47,.38),transparent 55%),linear-gradient(135deg,#2B2314,#3A2E18);display:flex;flex-direction:column;gap:7px}
 .cd-r{display:flex;align-items:center;gap:14px}
-.cd-n{font:600 54px/0.95 'Cormorant Garamond',serif;color:var(--gold);font-variant-numeric:tabular-nums}
+.cd-n{font:700 56px/1 var(--font-body);letter-spacing:-.03em;color:var(--gold);font-variant-numeric:tabular-nums}
 .cd-t{display:flex;flex-direction:column;gap:3px;min-width:0}
-.cd-k{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.14em}
+.cd-k{display:flex;align-items:center;gap:7px;font-size:15px;font-weight:600}
 .cd-k i{width:8px;height:8px;border-radius:50%;background:#E5432E;box-shadow:0 0 0 3px rgba(229,67,46,.28);animation:cdp 1.6s ease-in-out infinite}
 @keyframes cdp{50%{box-shadow:0 0 0 6px rgba(229,67,46,0)}}
 .cd-s{font-size:12.5px;color:#CDBE9C}
 .cd-b{height:6px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}
 .cd-b b{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#C9A460,#E5432E)}
-.cd-f{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.08em;color:#CDBE9C}
+.cd-f{display:flex;justify-content:space-between;font-size:11.5px;color:#CDBE9C}
 .hp{flex:none;display:flex;flex-direction:column;gap:3px;border:1px solid var(--hair);border-radius:14px;padding:6px 10px 6px;background:var(--bg)}
 .hp-h{display:flex;align-items:center;justify-content:space-between;gap:6px;flex:none}
 .hp-t{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--gold-deep);white-space:nowrap}
@@ -286,10 +286,10 @@ body{position:fixed;inset:0;width:100%;min-height:0}
 .tg{flex:none;border-top:1px solid var(--hair);margin-top:3px;padding-top:5px}
 .tg-h{display:flex;align-items:baseline;gap:8px}
 .tg-p{font:700 26px/1 var(--font-body);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:#C0301E}
-.tg-l{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--gold-deep)}
+.tg-l{font-size:13px;font-weight:600;color:var(--gold-deep)}
 .tg-b{height:11px;border-radius:99px;background:#FADADA;border:1.5px solid #D2452F;margin-top:4px;overflow:hidden}
 .tg-b b{display:block;height:100%;background:#D2452F}
-.tg-s{display:flex;justify-content:space-between;font-size:11.5px;margin-top:3px;color:var(--muted)}
+.tg-s{display:flex;justify-content:flex-start;font-size:11.5px;margin-top:3px;color:var(--muted)}
 .tg-m{margin-left:auto;font-size:11.5px;font-weight:600;color:#C0301E}
 .hmsg{margin:auto;text-align:center}
 .hacts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
@@ -719,7 +719,7 @@ function ytdSum(map,col){
 function countdownHTML(){
   const t=today(),end=new Date(t.getFullYear(),11,31),start=new Date(t.getFullYear(),0,1);
   const left=Math.round((end-t)/864e5),tot=Math.round((end-start)/864e5)+1,day=tot-left,pc=Math.round(day/tot*100);
-  return '<section class="cd" aria-label="Số ngày còn lại"><div class="cd-r"><div class="cd-n">'+left+'</div><div class="cd-t"><div class="cd-k"><i></i>DAYS LEFT</div><div class="cd-s">until 31 Dec '+end.getFullYear()+'</div></div></div><div class="cd-b"><b style="width:'+pc+'%"></b></div><div class="cd-f"><span>DAY '+day+' OF '+tot+'</span><span>'+pc+'% OF THE YEAR GONE</span></div></section>';
+  return '<section class="cd" aria-label="Số ngày còn lại"><div class="cd-r"><div class="cd-n">'+left+'</div><div class="cd-t"><div class="cd-k"><i></i>Days left</div><div class="cd-s">until 31 Dec '+end.getFullYear()+'</div></div></div><div class="cd-b"><b style="width:'+pc+'%"></b></div><div class="cd-f"><span>Day '+day+' of '+tot+'</span><span>'+pc+'% of the year gone</span></div></section>';
 }
 function ceoHTML(){
   const D=S.data,rows=[['Trang sách',ytdSum(D.ceo,1),YT.book,'#3D6FD8',0],['Km chạy',ytdSum(D.ceo,2),YT.run,'#D2452F',1],['Set tập',ytdSum(D.ceo,3),YT.sets,'#E8920C',0]];
@@ -735,7 +735,7 @@ function ceoHTML(){
 function revHTML(){
   const r=S.data.rev;if(!r||!r.t)return '';
   const a=r.a||0,p=Math.round(a/r.t*100),miss=Math.max(0,r.t-a);
-  return '<div class="tg"><div class="tg-h"><span class="tg-p">'+p+'%</span><span class="tg-l">DOANH SỐ</span><span class="tg-m">Còn thiếu '+fmtN(miss,0)+' ₫</span></div><div class="tg-b"><b style="width:'+Math.min(100,p)+'%"></b></div><div class="tg-s"><span>'+fmtN(a,0)+' ₫ thực tế</span><span>mục tiêu '+fmtN(r.t,0)+' ₫</span></div></div>';
+  return '<div class="tg"><div class="tg-h"><span class="tg-p">'+p+'%</span><span class="tg-l">Doanh số</span><span class="tg-m">Còn thiếu '+fmtN(miss,0)+' ₫</span></div><div class="tg-b"><b style="width:'+Math.min(100,p)+'%"></b></div><div class="tg-s"><span>Mục tiêu '+fmtN(r.t,0)+' ₫</span></div></div>';
 }
 function homeHTML(){
   if(S.err){const i=errInfo(S.err);return '<div class="home"><div class="empty hmsg"><div class="h3">'+esc(i.t)+'</div><p class="muted small" style="margin:6px 0 12px">'+esc(i.m)+'</p><button type="button" class="btn primary" data-act="'+i.btn+'">'+esc(i.lbl)+'</button></div></div>';}
