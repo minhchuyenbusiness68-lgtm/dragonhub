@@ -268,8 +268,9 @@ body{position:fixed;inset:0;width:100%;min-height:0}
 .hp-h{display:flex;align-items:center;justify-content:space-between;gap:6px;flex:none}
 .hp-t{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--gold-deep);white-space:nowrap}
 .rw{display:grid;grid-template-columns:78px 1fr 40px;align-items:center;gap:8px;margin-top:5px;font-size:12.5px}
-.rw .tr{height:12px;border-radius:99px;background:#F1EEE6;overflow:hidden}
+.rw .tr{height:18px;border-radius:99px;background:#F1EEE6;overflow:hidden;position:relative}
 .rw .tr b{display:block;height:100%;border-radius:99px}
+.rw .tr em{position:absolute;top:0;bottom:0;display:flex;align-items:center;font-style:normal;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rw .pc2{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .hpc{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:3px;border:1px solid var(--hair);border-radius:14px;padding:6px 8px 4px;background:var(--bg)}
 .hpc.fin{min-height:150px}.hpc.sale{flex-grow:1.3;min-height:200px}
@@ -284,7 +285,7 @@ body{position:fixed;inset:0;width:100%;min-height:0}
 .hov svg{display:block}
 .tg{flex:none;border-top:1px solid var(--hair);margin-top:3px;padding-top:5px}
 .tg-h{display:flex;align-items:baseline;gap:8px}
-.tg-p{font:600 26px/1 'Cormorant Garamond',serif;color:#C0301E}
+.tg-p{font:700 26px/1 var(--font-body);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:#C0301E}
 .tg-l{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--gold-deep)}
 .tg-b{height:11px;border-radius:99px;background:#FADADA;border:1.5px solid #D2452F;margin-top:4px;overflow:hidden}
 .tg-b b{display:block;height:100%;background:#D2452F}
@@ -293,7 +294,7 @@ body{position:fixed;inset:0;width:100%;min-height:0}
 .hmsg{margin:auto;text-align:center}
 .hacts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .hacts .btn{min-height:46px;padding:10px 8px;font-size:14px}
-@media (max-height:760px){.cd-f{display:none}.cd-n{font-size:36px!important}.hp{padding:4px 10px}.rw{font-size:11.5px;margin-top:2px!important}.rw .tr{height:9px}.tg-p{font-size:20px}.tg-b{height:8px;margin-top:2px}.tg{padding-top:3px;margin-top:2px}.tg-s,.tg-m{font-size:10.5px}.hpc{padding:4px 8px 3px}.hov{height:22px}.hd .sub{display:none}.hd img{height:36px}.home{gap:6px;margin-top:8px}.cd{padding:8px 14px;gap:5px}.cd-n{font-size:40px}.hacts{margin-top:8px}.hacts .btn{min-height:42px}.rw{margin-top:3px}.hpc.fin{min-height:110px}.hpc.sale{min-height:150px}}
+@media (max-height:760px){.cd-f{display:none}.cd-n{font-size:36px!important}.hp{padding:4px 10px}.rw{font-size:11.5px;margin-top:2px!important}.rw .tr{height:16px}.tg-p{font-size:20px}.tg-b{height:8px;margin-top:2px}.tg{padding-top:3px;margin-top:2px}.tg-s,.tg-m{font-size:10.5px}.hpc{padding:4px 8px 3px}.hov{height:22px}.hd .sub{display:none}.hd img{height:36px}.home{gap:6px;margin-top:8px}.cd{padding:8px 14px;gap:5px}.cd-n{font-size:40px}.hacts{margin-top:8px}.hacts .btn{min-height:42px}.rw{margin-top:3px}.hpc.fin{min-height:110px}.hpc.sale{min-height:150px}}
 /* time charts */
 .cback{margin:-4px 0 6px}
 .cbtn{margin-top:22px}
@@ -715,8 +716,15 @@ function countdownHTML(){
   return '<section class="cd" aria-label="Số ngày còn lại"><div class="cd-r"><div class="cd-n">'+left+'</div><div class="cd-t"><div class="cd-k"><i></i>DAYS LEFT</div><div class="cd-s">until 31 Dec '+end.getFullYear()+'</div></div></div><div class="cd-b"><b style="width:'+pc+'%"></b></div><div class="cd-f"><span>DAY '+day+' OF '+tot+'</span><span>'+pc+'% OF THE YEAR GONE</span></div></section>';
 }
 function ceoHTML(){
-  const D=S.data,rows=[['Trang sách',ytdSum(D.ceo,1)/YT.book,'#3D6FD8'],['Km chạy',ytdSum(D.ceo,2)/YT.run,'#D2452F'],['Set tập',ytdSum(D.ceo,3)/YT.sets,'#E8920C']];
-  return '<section class="hp" aria-label="CEO"><div class="hp-h"><div class="hp-t">CEO</div></div>'+rows.map(r=>{const p=Math.round(r[1]*100);return '<div class="rw"><span>'+r[0]+'</span><div class="tr"><b style="width:'+Math.max(0,Math.min(100,p))+'%;background:'+r[2]+'"></b></div><span class="pc2">'+p+'%</span></div>';}).join('')+'</section>';
+  const D=S.data,rows=[['Trang sách',ytdSum(D.ceo,1),YT.book,'#3D6FD8',0],['Km chạy',ytdSum(D.ceo,2),YT.run,'#D2452F',1],['Set tập',ytdSum(D.ceo,3),YT.sets,'#E8920C',0]];
+  return '<section class="hp" aria-label="CEO"><div class="hp-h"><div class="hp-t">CEO</div></div>'+rows.map(r=>{
+    const p=Math.round(r[1]/r[2]*100),w=Math.max(0,Math.min(100,p)),left=Math.max(0,r[2]-r[1]);
+    const done=fmtN(r[1],r[4]),rem=fmtN(left,r[4]);
+    const inD=w>=22;
+    return '<div class="rw"><span>'+r[0]+'</span><div class="tr"><b style="width:'+w+'%;background:'+r[3]+'"></b>'+
+      '<em style="left:'+(inD?'9px':'calc('+w+'% + 7px)')+';color:'+(inD?'#fff':'#2B2314')+'">'+done+'</em>'+
+      '<em style="right:9px;color:'+(w>=80?'#fff':'#8A8068')+'">'+rem+'</em></div><span class="pc2">'+p+'%</span></div>';
+  }).join('')+'</section>';
 }
 function revHTML(){
   const r=S.data.rev;if(!r||!r.t)return '';
@@ -735,7 +743,7 @@ function paint(){
   const keep=document.getElementById('shbd');const st=keep?keep.scrollTop:0;
   let h='';
   if(S.view==='home'){
-    h=header('Trang chủ','Overview',false,'CEO DRAGON HUB')+homeHTML()+'<div class="hacts"><button type="button" class="btn primary" data-act="toorg">Organization Chart</button><button type="button" class="btn primary" data-act="toreport">Periodic Report</button></div>';
+    h=header('Trang chủ','',false,'CEO DRAGON HUB')+homeHTML()+'<div class="hacts"><button type="button" class="btn primary" data-act="toorg">Organization Chart</button><button type="button" class="btn primary" data-act="toreport">Periodic Report</button></div>';
   }else if(S.view==='org'){
     h=header('Sơ đồ','Sơ đồ tổ chức',true)+'<nav class="org" aria-label="Sơ đồ tổ chức Dragon Hub">'+treeHTML(false)+'</nav>'+
       '<div class="actions"><button type="button" class="btn primary" data-act="toreport">Báo cáo thường kì</button></div>'+
