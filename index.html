@@ -548,7 +548,7 @@ async function getValues(id,range){
 async function fetchAll(){
     const [ceo,sale,out,flow,hdr,tgt]=await Promise.all([
       getValues(IDS.ceo,q('DAILY')+'!C2:I400'),
-      getValues(IDS.sale,q('MESURE')+'!B2:F1000'),
+      getValues(IDS.sale,q('MESURE')+'!B2:H1000'),
       getValues(IDS.acc,q('CASH OUTFLOW')+'!A2:G400'),
       getValues(IDS.acc,q('CASH FLOW & LIQUIDITY FORECAST')+'!A2:G400'),
       getValues(IDS.acc,q('CASH OUTFLOW')+'!B1:F1').catch(()=>[]),
@@ -632,8 +632,10 @@ function reportFor(g){
     h+=tbl(MHEAD,[
       mr('Cuộc gọi',D.sale,2,{unit:'cuộc',target:stdSum(D.sale,1,p.s,daysBetween(p.s,p.e)+1,100)}),
       mr('Khách quan tâm mới',D.sale,3,{unit:'khách',target:T('leads')}),
-      mr('Cuộc hẹn',D.sale,4,{unit:'cuộc',target:T('meet')})],2);
-    h+=gap(Math.max(cov(D.sale,2),cov(D.sale,3),cov(D.sale,4)));
+      mr('Lịch hẹn',D.sale,4,{unit:'cuộc'}),
+      mr('Cuộc gặp',D.sale,5,{unit:'cuộc',target:T('meet')}),
+      mr('Deal',D.sale,6,{unit:'deal'})],2);
+    h+=gap(Math.max(cov(D.sale,2),cov(D.sale,3),cov(D.sale,4),cov(D.sale,5),cov(D.sale,6)));
   }else{
     const thu=sumRange(D.flow,2,p.s,n).sum,chi=sumRange(D.out,6,p.s,n).sum;
     const thuP=cmp(D.flow,2),chiP=cmp(D.out,6);
@@ -781,7 +783,7 @@ function chartDefs(g,D){
     {name:'Tiêu chuẩn',map:D.sale,col:1,color:B,unit:'cuộc',dec:0,step:true},
     {name:'Cuộc gọi thực thi',short:'Cuộc gọi',map:D.sale,col:2,color:R,unit:'cuộc',dec:0},
     {name:'KH quan tâm',map:D.sale,col:3,color:O,unit:'khách',dec:0},
-    {name:'Cuộc gặp',map:D.sale,col:4,color:G,unit:'cuộc',dec:0}]}];
+    {name:'Cuộc gặp',map:D.sale,col:5,color:G,unit:'cuộc',dec:0}]}];
   return [{title:'Thu chi và dòng tiền',unit:'đồng',money:true,dec:0,ov:1,series:FINCOL.map(f=>({name:f[0],short:f[3],map:D.flow,col:f[1],color:f[2],ok:finFilled}))}];
 }
 function keyDate(k){const a=k.split('-');return new Date(+a[0],+a[1]-1,+a[2]);}
