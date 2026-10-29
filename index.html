@@ -288,16 +288,21 @@ body{position:fixed;inset:0;width:100%;min-height:0}
 .rw .tr b{display:block;height:100%;border-radius:99px}
 .rw .tr em{position:absolute;top:0;bottom:0;display:flex;align-items:center;font-style:normal;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rw .pc2{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
-.hpc{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:3px;border:1px solid var(--hair);border-radius:14px;padding:6px 8px 4px;background:var(--bg)}
-.hpc.fin,.hpc.sale{min-height:0;overflow:hidden}.hpc.sale{flex-grow:1.3}
+:root{--ph:clamp(120px,19vh,240px)}
+.hsc{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:8px;padding-bottom:6px}
+.hsc>*{flex:none}
+.hpc{display:flex;flex-direction:column;gap:3px;border:1px solid var(--hair);border-radius:14px;padding:6px 8px 6px;background:var(--bg)}
+.sc{display:flex;flex-direction:column;gap:3px}
+.sc+.sc{margin-top:8px;padding-top:6px;border-top:1px solid var(--hair)}
+.sc .hp-t{color:var(--muted);font-weight:600}
 .hpc .chips-s{margin:0;gap:1px;flex:none;flex-wrap:wrap}
 .hpc .chips-s .chip{min-height:22px;padding:0 4px;font-size:10.5px;gap:3px;border:0;background:transparent}
 .hpc .chips-s .chip[aria-pressed="false"]{background:transparent}
 .hpc .chips-s .chip i{width:8px;height:8px}
-.hpc .plot{flex:1 1 0;min-height:40px;touch-action:none;margin:0;position:relative}
+.hpc .plot{flex:none;height:var(--ph);touch-action:pan-y;margin:0;position:relative}
 .hpc .plot svg{position:absolute;left:0;top:0}
 .hpc .ax{font-size:10px}
-.hov{flex:none;height:26px;touch-action:none;cursor:ew-resize}
+.hov{position:sticky;top:0;z-index:5;background:var(--bg);height:30px;padding:2px 0;touch-action:none;cursor:ew-resize}
 .hov svg{display:block}
 .tg{flex:none;border-top:1px solid var(--hair);margin-top:3px;padding-top:5px}
 .tg-h{display:flex;align-items:baseline;gap:8px}
@@ -667,18 +672,19 @@ async function getValues(id,range){
   return j.values||[];
 }
 async function fetchAll(){
-    const [ceo,sale,out,flow,hdr,tgt]=await Promise.all([
+    const [ceo,sale,out,flow,hdr,tgt,bal]=await Promise.all([
       getValues(IDS.ceo,q('DAILY')+'!C2:I400'),
       getValues(IDS.sale,q('MESURE')+'!B2:H1000'),
       getValues(IDS.acc,q('CASH OUTFLOW')+'!A2:G400'),
       getValues(IDS.acc,q('CASH FLOW & LIQUIDITY FORECAST')+'!A2:G400'),
       getValues(IDS.acc,q('CASH OUTFLOW')+'!B1:F1').catch(()=>[]),
-      getValues(IDS.sale,q('MAIN TARGET 2026')+'!A1:G40').catch(()=>[])
+      getValues(IDS.sale,q('MAIN TARGET 2026')+'!A1:G40').catch(()=>[]),
+      getValues(IDS.acc,q('BALANCE SHEET')+'!H2:K200').catch(()=>[])
     ]);
     const tr=(tgt||[]).find(r=>r&&String(r[0]||'').trim().toUpperCase()==='TỔNG');
     const rev=tr?{t:parseNum(tr[3]),a:parseNum(tr[5])}:null;
     const cats=hdr[0]&&hdr[0].length>=5?hdr[0].slice(0,5).map(x=>String(x||'').trim()||'—'):['CP VẬN HÀNH','CP QUAN HỆ','CP PHÁT TRIỂN','CP ĐẦU TƯ','CP KHÁC'];
-    return {sig:JSON.stringify([ceo,sale,out,flow,hdr,tgt]),data:{ceo:mapRows(ceo),sale:mapRows(sale),out:mapRows(out),flow:mapRows(flow),cats:cats,rev:rev,at:new Date()}};
+    return {sig:JSON.stringify([ceo,sale,out,flow,hdr,tgt,bal]),data:{ceo:mapRows(ceo),sale:mapRows(sale),out:mapRows(out),flow:mapRows(flow),bal:mapRows(bal),cats:cats,rev:rev,at:new Date()}};
 }
 async function loadData(force){
   if(S.loading||(S.data&&!force))return;
@@ -863,7 +869,7 @@ function revHTML(){
 function homeHTML(){
   if(S.err){const i=errInfo(S.err);return '<div class="home"><div class="empty hmsg"><div class="h3">'+esc(i.t)+'</div><p class="muted small" style="margin:6px 0 12px">'+esc(i.m)+'</p><button type="button" class="btn primary" data-act="'+i.btn+'">'+esc(i.lbl)+'</button></div></div>';}
   if(!S.data)return '<div class="home">'+countdownHTML()+'<p class="muted hmsg"><span class="spin"></span> Đang đọc sheet…</p></div>';
-  return '<div class="home">'+countdownHTML()+ceoHTML()+'<div class="hov" id="hov"></div><section class="hpc fin" data-g="fin" aria-label="Accounting & Finance"></section><section class="hpc sale" data-g="sale" aria-label="Sale"></section></div>';
+  return '<div class="home">'+countdownHTML()+'<div class="hsc">'+ceoHTML()+'<div class="hov" id="hov"></div><section class="hpc sale" aria-label="Sale"></section><section class="hpc acc" aria-label="Accounting & Finance"><div class="hp-h"><div class="hp-t">Accounting & Finance</div></div><div class="sc" data-g="fin"></div><div class="sc" data-g="bal"></div></section></div></div>';
 }
 function paint(){
   const el=document.getElementById('app');if(!el)return;
@@ -907,6 +913,14 @@ function chartDefs(g,D){
     {name:'Lịch hẹn',short:'Hẹn',map:D.sale,col:4,color:'#8E3AA0',unit:'lịch',dec:0},
     {name:'Cuộc gặp',short:'Gặp',map:D.sale,col:5,color:G,unit:'cuộc',dec:0},
     {name:'Deal',short:'Deal',map:D.sale,col:6,color:'#2B2314',unit:'deal',dec:0}]}];
+  if(g==='bal'){
+    const last=c=>{let v=null;D.bal.forEach(r=>{const x=parseNum(r[c]);if(x!=null)v=x;});return v;};
+    const lab=(n,c)=>{const v=last(c);return v==null?n:n+' '+compactNum(v).replace('-','\u2212');};
+    return [{title:'Bảng cân đối',unit:'đồng',money:true,dec:0,ov:0,snap:true,series:[
+      {name:'Tài sản',short:lab('Tài sản',1),map:D.bal,col:1,color:G,conn:true},
+      {name:'Nợ',short:lab('Nợ',2),map:D.bal,col:2,color:R,conn:true},
+      {name:'Vốn chủ',short:lab('Vốn chủ',3),map:D.bal,col:3,color:B,conn:true}]}];
+  }
   return [{title:'Thu chi và dòng tiền',unit:'đồng',money:true,dec:0,ov:1,series:FINCOL.map(f=>({name:f[0],short:f[3],map:D.flow,col:f[1],color:f[2],ok:finFilled}))}];
 }
 function keyDate(k){const a=k.split('-');return new Date(+a[0],+a[1]-1,+a[2]);}
@@ -920,6 +934,7 @@ function timeline(defs,t){
   return {days:days,dates:dates};
 }
 function valsFor(s,days){return days.map(d=>{const r=s.map.get(d);if(!r||(s.ok&&!s.ok(r)))return null;return parseNum(r[s.col]);});}
+function connSeg(vals,lo,hi){const p=[];for(let j=lo;j<=hi;j++)if(vals[j]!=null)p.push([j,vals[j]]);return p.length?[p]:[];}
 function xLabel(d,span){return span>150?pad(d.getMonth()+1)+'/'+String(d.getFullYear()).slice(2):fmtDM(d);}
 function pathOf(seg,X,Y){return seg.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');}
 function stepOf(seg,X,Y){let d='',py='';seg.forEach((p,k)=>{const x=X(p[0]).toFixed(1),y=Y(p[1]).toFixed(1);d+=k?('L'+x+' '+py+'L'+x+' '+y):('M'+x+' '+y);py=y;});return d;}
@@ -981,7 +996,7 @@ function bindSlider(el,total,sv,onWin,flag){
    SH: dùng chung thanh kéo của trang chủ (không có thanh kéo riêng) */
 function mkChart(host,g,compact,title,SH){
   const defs=chartDefs(g,S.data),def=defs[0],tl=SH?SH.tl:timeline(defs,today());
-  const sv=SH?SH.sv:(CHS[g+(compact?'H':'S')]||(CHS[g+(compact?'H':'S')]={preset:'30',lo:0,hi:0}));
+  const sv=SH?SH.sv:(CHS[g+(compact?'H':'S')]||(CHS[g+(compact?'H':'S')]={preset:g==='bal'?'0':'30',lo:0,hi:0}));
   const offs=CHS[g+'off']||(CHS[g+'off']={});
   const K={host:host,drag:false,cur:null,redraw:function(){}};
   CI.push(K);
@@ -1019,7 +1034,8 @@ function mkChart(host,g,compact,title,SH){
       s+='<text class="ax" x="'+X(j).toFixed(1)+'" y="'+(H-(compact?4:6))+'" text-anchor="'+(k===0?'start':k===3?'end':'middle')+'">'+xLabel(dates[j],n)+'</text>';
     }
     act.forEach(o=>{
-      segments(o.s.vals,lo,hi).forEach(sg=>{
+      (o.s.conn?connSeg(o.s.vals,lo,hi):segments(o.s.vals,lo,hi)).forEach(sg=>{
+        if(o.s.conn)sg.forEach(p=>{s+='<circle cx="'+X(p[0]).toFixed(1)+'" cy="'+Y(p[1]).toFixed(1)+'" r="2.6" fill="'+o.s.color+'"/>';});
         if(sg.length===1){s+='<circle cx="'+X(sg[0][0]).toFixed(1)+'" cy="'+Y(sg[0][1]).toFixed(1)+'" r="2.4" fill="'+o.s.color+'"/>';return;}
         const d=o.s.step?stepOf(sg,X,Y):pathOf(sg,X,Y);
         s+='<path d="'+d+'" fill="none" stroke="'+o.s.color+'" stroke-width="'+(compact?1.8:2)+'" stroke-linejoin="round" stroke-linecap="round"/>';
@@ -1063,6 +1079,7 @@ function mkChart(host,g,compact,title,SH){
     const r=plotEl.getBoundingClientRect(),n=sv.hi-sv.lo,iw=r.width-PL.l-PL.r;
     let j=sv.lo+Math.round((e.clientX-r.left-PL.l)/iw*n);
     j=Math.max(sv.lo,Math.min(sv.hi,j));
+    if(def.snap){const a=def.series[0].vals;let b=-1;for(let k=sv.lo;k<=sv.hi;k++)if(a[k]!=null&&(b<0||Math.abs(k-j)<Math.abs(b-j)))b=k;if(b>=0)j=b;}
     if(K.cur&&K.cur.j===j)return;
     K.cur={j:j};drawPlot();
   };
@@ -1085,19 +1102,21 @@ function buildHome(){
   CI=[];
   const D=S.data,defF=chartDefs('fin',D),defS=chartDefs('sale',D);
   const tl=timeline(defF.concat(defS),today()),total=tl.days.length;
-  const fin=document.querySelector('.hpc[data-g="fin"]'),sale=document.querySelector('.hpc[data-g="sale"]'),ov=document.getElementById('hov');
-  if(!total||!fin||!sale||!ov)return;
+  const fin=document.querySelector('.sc[data-g="fin"]'),bal=document.querySelector('.sc[data-g="bal"]'),sale=document.querySelector('.hpc.sale'),ov=document.getElementById('hov');
+  if(!total||!fin||!sale||!ov||!bal)return;
   const apply=z=>{const n=+z;HSV.hi=total-1;HSV.lo=n>0?Math.max(0,total-n):0;HSV.preset=z;};
   if(HSV.preset!==null)apply(HSV.preset);else{HSV.hi=Math.min(HSV.hi,total-1);HSV.lo=Math.max(0,Math.min(HSV.lo,HSV.hi));}
   const SH={tl:tl,sv:HSV};
-  const kids=[mkChart(fin,'fin',true,'Accounting & Finance',SH),mkChart(sale,'sale',true,'Sale',SH)];
+  const kids=[mkChart(fin,'fin',true,'Dòng tiền',SH),mkChart(sale,'sale',true,'Sale',SH)];
+  let lastB=null;D.bal.forEach((r,k)=>{lastB=k;});
+  mkChart(bal,'bal',true,'Bảng cân đối'+(lastB?' · đến '+fmtDM(keyDate(lastB)):''));
   sale.insertAdjacentHTML('beforeend',revHTML());
   const vals=valsFor(defF[0].series[1],tl.days);
   const draw=()=>drawOvSvg(ov,vals,total,HSV.lo,HSV.hi,24,true);
   const onWin=()=>{kids.forEach(k=>{k.cur=null;k.redraw();});draw();};
   bindSlider(ov,total,HSV,onWin,v=>{kids.forEach(k=>{k.drag=v;});});
   draw();
-  requestAnimationFrame(()=>{if(ov.isConnected){kids.forEach(k=>{if(k.host.isConnected)k.redraw();});draw();}});
+  requestAnimationFrame(()=>{if(ov.isConnected){CI.forEach(k=>{if(k.host.isConnected)k.redraw();});draw();}});
 }
 window.addEventListener('resize',()=>{CI.forEach(k=>{if(k.host.isConnected)k.redraw();});if(S.view==='home'&&S.data&&!S.err&&document.getElementById('hov'))buildHome();});
 
@@ -1116,7 +1135,7 @@ async function refreshData(){
     if(r.sig!==S.sig){
       S.sig=r.sig;S.data=r.data;
       const n=S.sel&&FLAT[S.sel];
-      if(S.view==='home'){if(document.querySelector('.hp[data-g]'))buildHome();else paint();}
+      if(S.view==='home'){if(document.getElementById('hov'))buildHome();else paint();}
       else if(n&&n.g){
         if(S.cv)initCharts();
         else{const bd=document.getElementById('shbd');if(bd){const st=bd.scrollTop;bd.innerHTML=sheetBody(n);bd.scrollTop=st;}}
@@ -1153,7 +1172,7 @@ function qRender(){
   let r=qEl('qroot');if(!r){r=document.createElement('div');r.id='qroot';document.body.appendChild(r);}
   if(!qs.open){r.innerHTML='';return;}
   r.innerHTML='<div class="scrim" data-act="qclose"></div><div class="qe" role="dialog" aria-label="Ghi nhanh"><div class="qe-h"><span>Ghi nhanh</span><button type="button" class="iconbtn" data-act="qclose" aria-label="Đóng">×</button></div>'+
-    '<textarea id="qt" rows="3" placeholder="Nhập thông số cần ghi" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
+    '<textarea id="qt" rows="3" placeholder="Trang, km, set, tiếp cận, quan tâm, hẹn, gặp, deal" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
     '<div class="qe-d"><button type="button" class="chip" data-act="qday" data-d="0" id="qd0">Hôm nay</button><button type="button" class="chip" data-act="qday" data-d="-1" id="qd1">Hôm qua</button></div>'+
     '<div class="qp" id="qp"></div>'+
     '<div class="qe-f"><button type="button" class="btn" id="qundo" data-act="qundo" hidden>Hoàn tác</button><button type="button" class="btn primary" id="qw" data-act="qwrite" disabled>Ghi</button></div></div>';
