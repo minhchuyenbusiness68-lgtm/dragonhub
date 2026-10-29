@@ -630,7 +630,7 @@ function reportFor(g){
     h+=gap(Math.max(cov(D.ceo,1),cov(D.ceo,2),cov(D.ceo,3)));
   }else if(g==='sale'){
     h+=tbl(MHEAD,[
-      mr('Cuộc gọi',D.sale,2,{unit:'cuộc',target:stdSum(D.sale,1,p.s,daysBetween(p.s,p.e)+1,100)}),
+      mr('Tiếp cận',D.sale,2,{unit:'SĐT',target:stdSum(D.sale,1,p.s,daysBetween(p.s,p.e)+1,100)}),
       mr('Khách quan tâm mới',D.sale,3,{unit:'khách',target:T('leads')}),
       mr('Lịch hẹn',D.sale,4,{unit:'cuộc'}),
       mr('Cuộc gặp',D.sale,5,{unit:'cuộc',target:T('meet')}),
@@ -780,10 +780,12 @@ function chartDefs(g,D){
     {name:'Số set tập',map:D.ceo,col:3,color:O,unit:'set',dec:0},
     {name:'Số km chạy',map:D.ceo,col:2,color:R,unit:'km',dec:1}]}];
   if(g==='sale')return [{title:'Số liệu Sale',unit:'',dec:0,ov:1,series:[
-    {name:'Tiêu chuẩn',map:D.sale,col:1,color:B,unit:'cuộc',dec:0,step:true},
-    {name:'Cuộc gọi thực thi',short:'Cuộc gọi',map:D.sale,col:2,color:R,unit:'cuộc',dec:0},
-    {name:'KH quan tâm',map:D.sale,col:3,color:O,unit:'khách',dec:0},
-    {name:'Cuộc gặp',map:D.sale,col:5,color:G,unit:'cuộc',dec:0}]}];
+    {name:'Tiêu chuẩn',short:'Tiêu chuẩn',map:D.sale,col:1,color:B,unit:'SĐT',dec:0,step:true},
+    {name:'Số SĐT tiếp cận',short:'Tiếp cận',map:D.sale,col:2,color:R,unit:'SĐT',dec:0},
+    {name:'KH quan tâm',short:'Quan tâm',map:D.sale,col:3,color:O,unit:'khách',dec:0},
+    {name:'Lịch hẹn',short:'Hẹn',map:D.sale,col:4,color:'#8E3AA0',unit:'lịch',dec:0},
+    {name:'Cuộc gặp',short:'Gặp',map:D.sale,col:5,color:G,unit:'cuộc',dec:0},
+    {name:'Deal',short:'Deal',map:D.sale,col:6,color:'#2B2314',unit:'deal',dec:0}]}];
   return [{title:'Thu chi và dòng tiền',unit:'đồng',money:true,dec:0,ov:1,series:FINCOL.map(f=>({name:f[0],short:f[3],map:D.flow,col:f[1],color:f[2],ok:finFilled}))}];
 }
 function keyDate(k){const a=k.split('-');return new Date(+a[0],+a[1]-1,+a[2]);}
