@@ -515,10 +515,25 @@ function wordsToDigits(s){
   }
   return out.join(' ');
 }
+/* từ điển nhận diện: cụm từ (đã bỏ dấu) -> từ khóa chuẩn */
+const QSYN=[
+  ['tiepcan',['so dien thoai tiep can','so sdt tiep can','so dt tiep can','so may tiep can','so tiep can','sdt tiep can','dien thoai tiep can','tiep can duoc','tiep can','so dien thoai','so dt','so may','cuoc goi','goi dien thoai','goi dien','goi','lien he','call','calls','contacted','contacts','phones','phone numbers','phone number','numbers contacted']],
+  ['quantam',['khach hang quan tam moi','khach quan tam moi','khach hang quan tam','khach quan tam','kh quan tam','khach qt moi','khach qt','kh qt','khach hang tiem nang','khach tiem nang','khach moi','tiem nang','khach co nhu cau','khach hoi','quan tam','interested leads','interested','leads','lead']],
+  ['hen',['lich hen moi','lich hen','cuoc hen','buoi hen','hen gap duoc','hen duoc','hen gap','hen','appointments','appointment','appts','appt']],
+  ['gap',['cuoc gap','buoi gap','gap truc tiep','gap mat','gap khach hang','gap khach','gap duoc','meetings','meeting','meets','gap']],
+  ['deal',['chot deal','chot duoc','chot don','dong deal','ky hop dong','hop dong','chot','deals']],
+  ['quanhe',['quan he moi','moi quan he moi','moi quan he','quan he','relations','relation']],
+  ['muctieu',['muc tieu']]
+];
+const QSYNR=QSYN.map(([k,a])=>[k,new RegExp('\\b(?:'+a.slice().sort((x,y)=>y.length-x.length).map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')\\b','g')]);
+function normKW(s){
+  QSYNR.forEach(([k,re])=>{s=s.replace(re,k);});
+  return s.replace(/\b(?:di ngu|ngu luc|ngu vao luc|ngu vao)\b/g,'ngu');
+}
 const QKW={trang:'book',sach:'book',km:'run',cay:'run',chay:'run',set:'sets',sets:'sets',tap:'sets',quanhe:'rel',deal:'deal',chot:'deal',hen:'appt',gap:'meet',goi:'calls',tiepcan:'calls',sdt:'calls',quantam:'leads',pages:'book',page:'book',books:'book',run:'run',running:'run',sets:'sets',workout:'sets',contacted:'calls',contacts:'calls',calls:'calls',phones:'calls',interested:'leads',leads:'leads',appointments:'appt',appointment:'appt',appts:'appt',appt:'appt',meetings:'meet',meeting:'meet',meets:'meet',deals:'deal',relations:'rel',relation:'rel'};
 const QUNIT=new Set(['trang','km','cay','set','sets','quanhe','deal','hen','gap','sdt','pages','page','appointments','appointment','appts','meetings','meeting','deals','relations','sets','contacted','leads','interested','calls','phones']);
-const QFILL=new Set(['luc','duoc','la','khoang','da','vua','co','minh']);
-const QFILLN=new Set(['cuoc','nguoi','khach','lan','so','cai']);
+const QFILL=new Set(['luc','duoc','la','khoang','da','vua','co','minh','tong','them','den','hon','gan','nua','moi','khach','so','cac']);
+const QFILLN=new Set(['cuoc','nguoi','khach','lan','so','cai','buoi','ban','hop','don','kh','hang','data','lead','contact','cuoc','nhom']);
 const isNum=w=>/^\d+(\.\d+)?$/.test(w);
 function parseQuick(text){
   const res={day:0,preset:false,items:[],unknown:[]};
@@ -528,7 +543,7 @@ function parseQuick(text){
   if(/\bhom qua\b/.test(s)){res.day=-1;s=s.replace(/\bhom qua\b/g,' ');}
   else if(/\bhom kia\b/.test(s)){res.day=-2;s=s.replace(/\bhom kia\b/g,' ');}
   else s=s.replace(/\bhom nay\b/g,' ');
-  s=s.replace(/\btiep can\b/g,'tiepcan').replace(/\bquan tam\b/g,'quantam').replace(/\bquan he\b/g,'quanhe').replace(/\bmuc tieu\b/g,'muctieu').replace(/\blich hen\b/g,'hen').replace(/\bcuoc hen\b/g,'hen').replace(/\bcuoc gap\b/g,'gap').replace(/\bso dien thoai\b/g,'sdt').replace(/\b(?:di ngu|ngu luc|ngu vao luc|ngu vao)\b/g,'ngu');
+  s=normKW(s);
   s=wordsToDigits(s).replace(/(\d+)\s+ruoi\b/g,(m,a)=>/\b(?:gio|h)\b/.test(m)?m:a+'#5');
   // hoàn thành 100% KPI
   const pre=/(?:hoan thanh|xong|dat|du)\s+(?:het\s+|toan bo\s+|tat ca\s+)?(?:100\s*%|muctieu|kpi|chi tieu)(?:\s+(?:ceo|kpi|muctieu|chi tieu))*|100\s*%\s*(?:kpi|muctieu|chi tieu)(?:\s+ceo)?|kpi\s+ceo\s+100\s*%/;
@@ -563,7 +578,7 @@ function parseQuick(text){
     let p=i-1;if(p>=0&&QFILL.has(t[p]))p--;
     if(p>=0&&QKW[t[p]]&&!used[p]){take(QKW[t[p]],v,i,p);continue;}
     let n=i+1;if(n<t.length&&QFILLN.has(t[n]))n++;
-    if(n<t.length&&QUNIT.has(t[n])&&!used[n]){take(QKW[t[n]],v,i,n);continue;}
+    if(n<t.length&&QKW[t[n]]&&!used[n]){take(QKW[t[n]],v,i,n);continue;}
     if(t[i+1]==='%'||t[i-1]==='%'){used[i]=true;continue;}
     used[i]=true;res.unknown.push('Number '+t[i]+' does not match any item');
   }
