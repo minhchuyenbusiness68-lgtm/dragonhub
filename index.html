@@ -1118,6 +1118,11 @@ function buildHome(){
   draw();
   requestAnimationFrame(()=>{if(ov.isConnected){CI.forEach(k=>{if(k.host.isConnected)k.redraw();});draw();}});
 }
+function clearTips(){CI.forEach(k=>{if(k.cur&&k.host.isConnected){k.cur=null;k.redraw();}});}
+document.addEventListener('pointerdown',e=>{
+  if(!e.target.closest||!e.target.closest('.plot')||e.clientX<18||e.clientX>innerWidth-18)clearTips();
+});
+document.addEventListener('scroll',clearTips,true);
 window.addEventListener('resize',()=>{CI.forEach(k=>{if(k.host.isConnected)k.redraw();});if(S.view==='home'&&S.data&&!S.err&&document.getElementById('hov'))buildHome();});
 
 /* ---------- auto refresh ---------- */
