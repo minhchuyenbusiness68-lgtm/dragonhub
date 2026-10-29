@@ -1153,7 +1153,7 @@ function qRender(){
   let r=qEl('qroot');if(!r){r=document.createElement('div');r.id='qroot';document.body.appendChild(r);}
   if(!qs.open){r.innerHTML='';return;}
   r.innerHTML='<div class="scrim" data-act="qclose"></div><div class="qe" role="dialog" aria-label="Ghi nhanh"><div class="qe-h"><span>Ghi nhanh</span><button type="button" class="iconbtn" data-act="qclose" aria-label="Đóng">×</button></div>'+
-    '<textarea id="qt" rows="3" placeholder="Ví dụ: đọc 20 trang, chạy 1 km, tập 9 set, ngủ 23:30" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
+    '<textarea id="qt" rows="3" placeholder="Nhập thông số cần ghi" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
     '<div class="qe-d"><button type="button" class="chip" data-act="qday" data-d="0" id="qd0">Hôm nay</button><button type="button" class="chip" data-act="qday" data-d="-1" id="qd1">Hôm qua</button></div>'+
     '<div class="qp" id="qp"></div>'+
     '<div class="qe-f"><button type="button" class="btn" id="qundo" data-act="qundo" hidden>Hoàn tác</button><button type="button" class="btn primary" id="qw" data-act="qwrite" disabled>Ghi</button></div></div>';
