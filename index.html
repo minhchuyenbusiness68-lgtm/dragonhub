@@ -492,8 +492,8 @@ function dragWindow(mode,j,j0,lo0,hi0,total,minLen){
 }
 /* ---- Ghi nhanh: đọc câu tiếng Việt (không dùng AI) ---- */
 const QF={
-  ceo:{tab:'ceoDaily',dcol:'C',first:2,last:400,cols:{book:['D','Pages'],run:['E','Km run'],sets:['F','Sets'],read:['G','Goal read-out'],sleep:['H','Bedtime'],rel:['I','New relations']},zero:['book','run','sets','read']},
-  sale:{tab:'saleMeasure',dcol:'B',first:2,last:1000,cols:{calls:['D','Contacted'],leads:['E','Interested'],appt:['F','Appointments'],meet:['G','Meetings'],deal:['H','Deal']},zero:['calls','leads','appt','meet']}
+  ceo:{tab:'ceoDaily',dcol:'C',first:2,last:400,cols:{book:['D','Pages'],run:['E','Km run'],sets:['F','Sets'],read:['G','Goal read-out'],sleep:['H','Bedtime'],rel:['I','New relations']},zero:[]},
+  sale:{tab:'saleMeasure',dcol:'B',first:2,last:1000,cols:{calls:['D','Contacted'],leads:['E','Interested'],appt:['F','Appointments'],meet:['G','Meetings'],deal:['H','Deal']},zero:[]}
 };
 const QSHEET={book:'ceo',run:'ceo',sets:'ceo',read:'ceo',sleep:'ceo',rel:'ceo',calls:'sale',leads:'sale',appt:'sale',meet:'sale',deal:'sale'};
 const QKPI={book:25,run:1,sets:12,read:1};
@@ -729,6 +729,7 @@ async function loadData(force){
     const r=await fetchAll();S.data=r.data;S.sig=r.sig;
   }catch(e){S.err=e;}
   S.loading=false;paint();
+  if(S.data)backfillZeros().then(()=>{});
 }
 function errInfo(e){
   switch(e&&e.code){
@@ -1205,6 +1206,32 @@ async function putCells(id,data){
   const j=await sheetsCall('https://sheets.googleapis.com/v4/spreadsheets/'+id+'/values:batchUpdate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({valueInputOption:'USER_ENTERED',data:data})});
   if(j.totalUpdatedCells!==data.length)throw {code:'http',message:'Google reports '+j.totalUpdatedCells+'/'+data.length+' cells written'};
 }
+
+/* end of day: empty cells of the last 3 finished days become 0 (not Deals, Bedtime, New relations) */
+async function backfillZeros(){
+  const key='dh_bf',today=ymd(new Date());
+  if(ls.get(key)===today||!tokenGet())return;
+  try{
+    for(const sh of ['ceo','sale']){
+      const F=QF[sh],id=sh==='ceo'?IDS.ceo:IDS.sale,ks=Object.keys(F.cols);
+      const c0=F.dcol.charCodeAt(0);
+      const lastCol=F.cols[ks[ks.length-1]][0];
+      const rows=await getRaw(id,q(tabName(F.tab))+'!'+F.dcol+F.first+':'+lastCol+F.last,'UNFORMATTED_VALUE');
+      const fm=await getRaw(id,q(tabName(F.tab))+'!'+F.dcol+F.first+':'+F.dcol+F.last,'FORMATTED_VALUE');
+      const fill=sh==='ceo'?['book','run','sets','read']:['calls','leads','appt','meet'];
+      const data=[];
+      for(let i=0;i<fm.length;i++){
+        const k=parseDMY(fm[i]&&fm[i][0]);if(!k||k>=today)continue;
+        if(daysBetween(new Date(+k.slice(0,4),+k.slice(5,7)-1,+k.slice(8,10)),new Date())>3)continue;
+        const r=rows[i]||[];
+        fill.forEach(f=>{const col=F.cols[f][0],idx=col.charCodeAt(0)-c0,v=r[idx];
+          if(v===undefined||v===''||v===null)data.push({range:q(tabName(F.tab))+'!'+col+(F.first+i),values:[[0]]});});
+      }
+      if(data.length)await putCells(id,data);
+    }
+    ls.set(key,today);
+  }catch(e){}
+}
 function qRender(){
   let r=qEl('qroot');if(!r){r=document.createElement('div');r.id='qroot';document.body.appendChild(r);}
   if(!qs.open){r.innerHTML='';return;}
@@ -1234,7 +1261,7 @@ function qPrev(){
       });
     });
     pr.unknown.forEach(u=>{h+='<div class="qr qw">'+esc(u)+'</div>';});
-    if(pr.items.length)h+='<div class="qn">Items not mentioned are set to 0 if the cell is empty (Deals stays blank).</div>';
+    if(pr.items.length)h+='<div class="qn">Only what you enter is written. Empty items become 0 after the day ends (Deals stays blank).</div>';
   }
   box.innerHTML=h;
   qEl('qw').disabled=!pr.items.length||qs.busy;
