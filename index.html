@@ -493,7 +493,7 @@ function dragWindow(mode,j,j0,lo0,hi0,total,minLen){
 /* ---- Ghi nhanh: đọc câu tiếng Việt (không dùng AI) ---- */
 const QF={
   ceo:{tab:'ceoDaily',dcol:'C',first:2,last:400,cols:{book:['D','Pages'],run:['E','Km run'],sets:['F','Sets'],read:['G','Goal read-out'],sleep:['H','Bedtime'],rel:['I','New relations']},zero:['book','run','sets','read']},
-  sale:{tab:'saleMeasure',dcol:'B',first:2,last:1000,cols:{calls:['D','Contacted'],leads:['E','Interested'],appt:['F','Appointments'],meet:['G','Meetings'],deal:['H','Deal']},zero:['calls','leads','appt','meet','deal']}
+  sale:{tab:'saleMeasure',dcol:'B',first:2,last:1000,cols:{calls:['D','Contacted'],leads:['E','Interested'],appt:['F','Appointments'],meet:['G','Meetings'],deal:['H','Deal']},zero:['calls','leads','appt','meet']}
 };
 const QSHEET={book:'ceo',run:'ceo',sets:'ceo',read:'ceo',sleep:'ceo',rel:'ceo',calls:'sale',leads:'sale',appt:'sale',meet:'sale',deal:'sale'};
 const QKPI={book:25,run:1,sets:12,read:1};
@@ -1209,7 +1209,7 @@ function qRender(){
   let r=qEl('qroot');if(!r){r=document.createElement('div');r.id='qroot';document.body.appendChild(r);}
   if(!qs.open){r.innerHTML='';return;}
   r.innerHTML='<div class="scrim" data-act="qclose"></div><div class="qe" role="dialog" aria-label="Quick entry"><div class="qe-h"><span>Quick entry</span><button type="button" class="iconbtn" data-act="qclose" aria-label="Close">×</button></div>'+
-    '<textarea id="qt" rows="3" placeholder="Pages, km, sets, contacted, interested, appointments, meetings, deals" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
+    '<textarea id="qt" rows="4" placeholder="CEO: pages, km run, sets, read out the goal, bedtime, new relations. Sale: contacted, interested, appointments, meetings, deals" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
     '<div class="qe-d"><button type="button" class="chip" data-act="qday" data-d="0" id="qd0">Today</button><button type="button" class="chip" data-act="qday" data-d="-1" id="qd1">Yesterday</button></div>'+
     '<div class="qp" id="qp"></div>'+
     '<div class="qe-f"><button type="button" class="btn" id="qundo" data-act="qundo" hidden>Undo</button><button type="button" class="btn primary" id="qw" data-act="qwrite" disabled>Save</button></div></div>';
@@ -1234,7 +1234,7 @@ function qPrev(){
       });
     });
     pr.unknown.forEach(u=>{h+='<div class="qr qw">'+esc(u)+'</div>';});
-    if(pr.items.length)h+='<div class="qn">Items not mentioned are set to 0 if the cell is empty.</div>';
+    if(pr.items.length)h+='<div class="qn">Items not mentioned are set to 0 if the cell is empty (Deals stays blank).</div>';
   }
   box.innerHTML=h;
   qEl('qw').disabled=!pr.items.length||qs.busy;
