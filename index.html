@@ -589,7 +589,7 @@ function parseQuick(text){
   if(res.preset){
     Object.keys(QKPI).forEach(k=>{if(!res.items.some(x=>x.key===k))res.items.push({key:k,sheet:'ceo',val:QKPI[k],mode:'atleast'});});
   }
-  // từ khóa không đi kèm số (trừ động từ chung)
+  if(!res.items.length&&!res.preset&&!res.unknown.some(u=>/Invalid bedtime/.test(u))&&String(text||'').trim())res.lesson=String(text).trim();
   return res;
 }
 function planCell(mode,cur,val){
@@ -633,7 +633,7 @@ const MODES=[['day','Day'],['week','Week'],['month','Month'],['quarter','Quarter
 const SOGRP_LABEL={ceo:'CEO metrics',fin:'Income, spending & cash flow',sale:'Sales metrics'};
 const q=t=>"'"+t.replace(/'/g,"''")+"'";
 /* tabs are looked up by gid, so renaming a tab never breaks the app */
-const GID={ceoDaily:[IDS.ceo,0,'DAILY'],saleMeasure:[IDS.sale,0,'MESURE'],saleTarget:[IDS.sale,2083922373,'MAIN TARGET 2026'],accOut:[IDS.acc,173622054,'CASH OUTFLOW'],accFlow:[IDS.acc,0,'CASH FLOW & LIQUIDITY FORECAST'],accBal:[IDS.acc,845637138,'BALANCE SHEET']};
+const GID={ceoDaily:[IDS.ceo,0,'DAILY'],saleMeasure:[IDS.sale,0,'MESURE'],saleTarget:[IDS.sale,2083922373,'MAIN TARGET 2026'],accOut:[IDS.acc,173622054,'CASH OUTFLOW'],accFlow:[IDS.acc,0,'CASH FLOW & LIQUIDITY FORECAST'],accBal:[IDS.acc,845637138,'BALANCE SHEET'],ceoExp:[IDS.ceo,1298062771,'EXPERIENCES']};
 const TT={};
 async function resolveTabs(){
   const tok=tokenGet();if(!tok)return;
@@ -1236,7 +1236,7 @@ function qRender(){
   let r=qEl('qroot');if(!r){r=document.createElement('div');r.id='qroot';document.body.appendChild(r);}
   if(!qs.open){r.innerHTML='';return;}
   r.innerHTML='<div class="scrim" data-act="qclose"></div><div class="qe" role="dialog" aria-label="Quick entry"><div class="qe-h"><span>Quick entry</span><button type="button" class="iconbtn" data-act="qclose" aria-label="Close">×</button></div>'+
-    '<textarea id="qt" rows="4" placeholder="CEO: pages, km run, sets, read out the goal, bedtime, new relations. Sale: contacted, interested, appointments, meetings, deals" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
+    '<textarea id="qt" rows="5" placeholder="CEO: pages, km run, sets, read out the goal, bedtime, new relations&#10;Sale: contacted, interested, appointments, meetings, deals" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
     '<div class="qe-d"><button type="button" class="chip" data-act="qday" data-d="0" id="qd0">Today</button><button type="button" class="chip" data-act="qday" data-d="-1" id="qd1">Yesterday</button></div>'+
     '<div class="qp" id="qp"></div>'+
     '<div class="qe-f"><button type="button" class="btn" id="qundo" data-act="qundo" hidden>Undo</button><button type="button" class="btn primary" id="qw" data-act="qwrite" disabled>Save</button></div></div>';
@@ -1250,6 +1250,9 @@ function qPrev(){
   qEl('qundo').hidden=!qs.undo;
   let h='';
   if(qs.msg){h+=qs.msg;}
+  else if(pr.lesson){
+    h+='<div class="qn">Saving as a lesson to EXPERIENCES · '+fmtDMY(day)+'</div><div class="qr"><span>'+esc(pr.lesson.length>140?pr.lesson.slice(0,140)+'…':pr.lesson)+'</span></div>';
+  }
   else if(pr.items.length||pr.unknown.length){
     h+='<div class="qn">Writing to '+fmtDMY(day)+'</div>';
     ['ceo','sale'].forEach(sh=>{
@@ -1264,7 +1267,7 @@ function qPrev(){
     if(pr.items.length)h+='<div class="qn">Only what you enter is written. Empty items become 0 after the day ends (Deals stays blank).</div>';
   }
   box.innerHTML=h;
-  qEl('qw').disabled=!pr.items.length||qs.busy;
+  qEl('qw').disabled=!(pr.items.length||pr.lesson)||qs.busy;
 }
 function qOpen(){qs.open=true;qs.msg=null;qs.dayOv=null;qRender();const t=qEl('qt');if(t)t.focus();}
 function qClose(){qs.open=false;qs.busy=false;qRender();}
@@ -1273,9 +1276,24 @@ const qMsgErr=e=>{
   if(e&&e.code==='denied')return '<div class="qr qw">Google blocked writing: '+esc(e.message||'missing permission')+'. Sign in again to grant edit access.</div><button type="button" class="btn" data-act="login">Sign in with Google</button>';
   return '<div class="qr qw">'+esc((e&&e.message)||'Could not save. Check your connection and try again.')+'</div>';
 };
+async function qWriteLesson(pr,ta){
+  qs.busy=true;qEl('qw').disabled=true;qEl('qp').innerHTML='<div class="qn"><span class="spin"></span> Saving…</div>';
+  try{
+    const id=IDS.ceo,tab=q(tabName('ceoExp')),day=qDay(pr);
+    const rows=await getRaw(id,tab+'!A2:F2000','UNFORMATTED_VALUE');
+    let last=-1,mx=0;
+    rows.forEach((r,i)=>{if(r&&(r[0]!==undefined&&r[0]!==''||r[4]!==undefined&&r[4]!==''))last=i;const n=r&&typeof r[0]==='number'?r[0]:0;if(n>mx)mx=n;});
+    const row=2+last+1;
+    await putCells(id,[{range:tab+'!A'+row,values:[[mx+1]]},{range:tab+'!B'+row,values:[[fmtDMY(day)]]},{range:tab+'!E'+row,values:[[pr.lesson]]}]);
+    qs.undo={plans:[{id:id,tab:tabName('ceoExp'),row:row,cells:[{col:'A',prev:''},{col:'B',prev:''},{col:'E',prev:''}]}]};
+    qs.msg='<div class="qn">Saved to EXPERIENCES, row '+row+' (No. '+(mx+1)+', '+fmtDMY(day)+')</div>';
+    ta.value='';qs.busy=false;qPrev();
+  }catch(e){qs.busy=false;qs.msg=qMsgErr(e);qPrev();}
+}
 async function qWrite(){
   const ta=qEl('qt');if(!ta||qs.busy)return;
-  const pr=parseQuick(ta.value);if(!pr.items.length)return;
+  const pr=parseQuick(ta.value);if(!pr.items.length&&!pr.lesson)return;
+  if(pr.lesson)return qWriteLesson(pr,ta);
   qs.busy=true;qEl('qw').disabled=true;qEl('qp').innerHTML='<div class="qn"><span class="spin"></span> Saving…</div>';
   try{
     const day=qDay(pr),key=ymd(day),plans=[];
