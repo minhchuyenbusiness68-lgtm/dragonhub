@@ -711,7 +711,7 @@ async function fetchAll(){
       getValues(IDS.acc,q(tabName('accFlow'))+'!A2:G400'),
       getValues(IDS.acc,q(tabName('accOut'))+'!B1:F1').catch(()=>[]),
       getValues(IDS.sale,q(tabName('saleTarget'))+'!A1:G40').catch(()=>[]),
-      getValues(IDS.acc,q(tabName('accBal'))+'!H2:K200').catch(()=>[])
+      getValues(IDS.acc,q(tabName('accBal'))+'!H2:L200').catch(()=>[])
     ]);
     const tr=(tgt||[]).find(r=>r&&/^(TỔNG|TOTAL)$/.test(String(r[0]||'').trim().toUpperCase()));
     const rev=tr?{t:parseNum(tr[3]),a:parseNum(tr[5])}:null;
@@ -952,7 +952,8 @@ function chartDefs(g,D){
     return [{title:'Balance sheet',unit:'VND',money:true,dec:0,ov:0,snap:true,series:[
       {name:'Assets',short:lab('Assets',1),map:D.bal,col:1,color:G,conn:true},
       {name:'Debt',short:lab('Debt',2),map:D.bal,col:2,color:R,conn:true},
-      {name:'Equity',short:lab('Equity',3),map:D.bal,col:3,color:B,conn:true}]}];
+      {name:'Equity',short:lab('Equity',3),map:D.bal,col:3,color:B,conn:true},
+      {name:'DAR (debt / assets)',short:(()=>{const v=last(4);return v==null?'DAR':'DAR '+fmtN(v,0)+'%';})(),map:D.bal,col:4,color:'#8F6D2E',conn:true,right:true,dash:true,unit:'%',dec:1}]}];
   }
   return [{title:'Cash flow',unit:'VND',money:true,dec:0,ov:1,series:FINCOL.map(f=>({name:f[0],short:f[3],map:D.flow,col:f[1],color:f[2],ok:finFilled}))}];
 }
@@ -971,7 +972,7 @@ function connSeg(vals,lo,hi){const p=[];for(let j=lo;j<=hi;j++)if(vals[j]!=null)
 function xLabel(d,span){return span>150?pad(d.getMonth()+1)+'/'+String(d.getFullYear()).slice(2):fmtDM(d);}
 function pathOf(seg,X,Y){return seg.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');}
 function stepOf(seg,X,Y){let d='',py='';seg.forEach((p,k)=>{const x=X(p[0]).toFixed(1),y=Y(p[1]).toFixed(1);d+=k?('L'+x+' '+py+'L'+x+' '+y):('M'+x+' '+y);py=y;});return d;}
-function fmtVal(def,v,s){if(def.money)return fmtN(v,0)+' ₫';const u=s&&s.unit!=null?s.unit:def.unit,d=s&&s.dec!=null?s.dec:def.dec;return fmtN(v,d)+' '+u;}
+function fmtVal(def,v,s){if(s&&s.right)return fmtN(v,s.dec==null?1:s.dec)+'%';if(def.money)return fmtN(v,0)+' ₫';const u=s&&s.unit!=null?s.unit:def.unit,d=s&&s.dec!=null?s.dec:def.dec;return fmtN(v,d)+' '+u;}
 function tipRow(color,name,val){return '<div class="r"><i style="background:'+color+'"></i>'+(name?esc(name)+' ':'')+'<b>'+val+'</b></div>';}
 
 /* thanh kéo chọn khoảng thời gian: vẽ + kéo */
@@ -1036,7 +1037,8 @@ function mkChart(host,g,compact,title,SH){
   const days=tl.days,dates=tl.dates,total=days.length;
   if(!total){host.innerHTML='<div class="empty"><div class="h3">No data yet</div><p class="muted small" style="margin-top:6px">No day has data to chart yet.</p></div>';return K;}
   def.series.forEach(s=>{s.vals=valsFor(s,days);});
-  const PL=compact?{l:6,r:42,t:6,b:16}:{l:6,r:48,t:8,b:22};
+  const hasR=def.series.some(x=>x.right);
+  const PL=compact?{l:hasR?38:6,r:42,t:6,b:16}:{l:hasR?44:6,r:48,t:8,b:22};
   const applyPreset=z=>{const n=+z;sv.hi=total-1;sv.lo=n>0?Math.max(0,total-n):0;sv.preset=z;};
   if(!SH){
     if(sv.preset!==null)applyPreset(sv.preset);
@@ -1053,25 +1055,30 @@ function mkChart(host,g,compact,title,SH){
     const H=compact?Math.max(64,plotEl.clientHeight||110):(def.money?240:190);
     const lo=sv.lo,hi=sv.hi,n=hi-lo,iw=W-PL.l-PL.r;
     const act=[];def.series.forEach((s,k)=>{if(!offs[k])act.push({s:s,k:k});});
-    let mn=0,mx=0;
-    act.forEach(o=>{for(let j=lo;j<=hi;j++){const v=o.s.vals[j];if(v!=null){if(v<mn)mn=v;if(v>mx)mx=v;}}});
+    let mn=0,mx=0,rmn=Infinity,rmx=-Infinity;
+    act.forEach(o=>{if(o.s.right){for(let j=lo;j<=hi;j++){const v=o.s.vals[j];if(v!=null){if(v<rmn)rmn=v;if(v>rmx)rmx=v;}}return;}for(let j=lo;j<=hi;j++){const v=o.s.vals[j];if(v!=null){if(v<mn)mn=v;if(v>mx)mx=v;}}});
     const sc=niceScale(mn,mx,compact?3:4);
-    const X=j=>PL.l+(n>0?(j-lo)/n:0)*iw,Y=v=>PL.t+(1-(v-sc.min)/(sc.max-sc.min))*(H-PL.t-PL.b);
+    const sr=rmx>=rmn?niceScale(Math.min(rmn,100),Math.max(rmx,100),compact?3:4):null;
+    const X=j=>PL.l+(n>0?(j-lo)/n:0)*iw,Y=v=>PL.t+(1-(v-sc.min)/(sc.max-sc.min))*(H-PL.t-PL.b),YR=v=>PL.t+(1-(v-sr.min)/(sr.max-sr.min))*(H-PL.t-PL.b),YY=(o,v)=>o.s.right&&sr?YR(v):Y(v);
     let s='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Chart '+esc(title||def.title)+' from '+fmtDMY(dates[lo])+' to '+fmtDMY(dates[hi])+'">';
     sc.ticks.forEach(v=>{
       const y=Y(v);
       s+='<line x1="'+PL.l+'" x2="'+(W-PL.r)+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="'+(v===0?'#CFC6B0':'#EEE9DC')+'" stroke-width="1"/><text class="ax" x="'+(W-PL.r+6)+'" y="'+(y+3.5).toFixed(1)+'">'+compactNum(v)+'</text>';
     });
+    if(sr){
+      sr.ticks.forEach(v=>{s+='<text class="ax" x="'+(PL.l-5)+'" y="'+(YR(v)+3.5).toFixed(1)+'" text-anchor="end" fill="#8F6D2E">'+fmtN(v,0)+'%</text>';});
+      if(100>=sr.min&&100<=sr.max)s+='<line x1="'+PL.l+'" x2="'+(W-PL.r)+'" y1="'+YR(100).toFixed(1)+'" y2="'+YR(100).toFixed(1)+'" stroke="#8F6D2E" stroke-opacity=".35" stroke-dasharray="2 4"/>';
+    }
     for(let k=0;k<4;k++){
       const j=lo+Math.round(n*k/3);
       s+='<text class="ax" x="'+X(j).toFixed(1)+'" y="'+(H-(compact?4:6))+'" text-anchor="'+(k===0?'start':k===3?'end':'middle')+'">'+xLabel(dates[j],n)+'</text>';
     }
     act.forEach(o=>{
       (o.s.conn?connSeg(o.s.vals,lo,hi):segments(o.s.vals,lo,hi)).forEach(sg=>{
-        if(o.s.conn)sg.forEach(p=>{s+='<circle cx="'+X(p[0]).toFixed(1)+'" cy="'+Y(p[1]).toFixed(1)+'" r="2.6" fill="'+o.s.color+'"/>';});
-        if(sg.length===1){s+='<circle cx="'+X(sg[0][0]).toFixed(1)+'" cy="'+Y(sg[0][1]).toFixed(1)+'" r="2.4" fill="'+o.s.color+'"/>';return;}
-        const d=o.s.step?stepOf(sg,X,Y):pathOf(sg,X,Y);
-        s+='<path d="'+d+'" fill="none" stroke="'+o.s.color+'" stroke-width="'+(compact?1.8:2)+'" stroke-linejoin="round" stroke-linecap="round"/>';
+        if(o.s.conn)sg.forEach(p=>{s+='<circle cx="'+X(p[0]).toFixed(1)+'" cy="'+YY(o,p[1]).toFixed(1)+'" r="2.6" fill="'+o.s.color+'"/>';});
+        if(sg.length===1){s+='<circle cx="'+X(sg[0][0]).toFixed(1)+'" cy="'+YY(o,sg[0][1]).toFixed(1)+'" r="2.4" fill="'+o.s.color+'"/>';return;}
+        const d=o.s.step?stepOf(sg,X,Y):pathOf(sg,X,o.s.right&&sr?YR:Y);
+        s+='<path d="'+d+'" fill="none" stroke="'+o.s.color+'" stroke-width="'+(compact?1.8:2)+'" stroke-linejoin="round" stroke-linecap="round"'+(o.s.dash?' stroke-dasharray="5 4"':'')+'/>';
       });
     });
     let tip='';
@@ -1082,7 +1089,7 @@ function mkChart(host,g,compact,title,SH){
       act.forEach(o=>{
         const v=o.s.vals[j];
         if(v!=null){
-          s+='<circle cx="'+x.toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="3.6" fill="#fff" stroke="'+o.s.color+'" stroke-width="2"/>';
+          s+='<circle cx="'+x.toFixed(1)+'" cy="'+YY(o,v).toFixed(1)+'" r="3.6" fill="#fff" stroke="'+o.s.color+'" stroke-width="2"/>';
           rows+=tipRow(o.s.color,o.s.name,fmtVal(def,v,o.s));
         }
       });
