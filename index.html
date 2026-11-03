@@ -444,6 +444,15 @@ function stdSum(map,col,s,len,fb){
 }
 // ngày Kế toán chỉ tính là đã nhập khi có đầu ngày, hoặc dòng vào, hoặc dòng ra > 0
 function finFilled(r){return !!r&&(parseNum(r[1])!=null||parseNum(r[2])!=null||(parseNum(r[3])||0)>0);}
+function firstFilled(map,col,s,n,ok){
+  for(let i=0;i<n;i++){
+    const r=map.get(ymd(addDays(s,i)));
+    if(!ok(r))continue;
+    const v=parseNum(r[col]);
+    if(v!=null)return v;
+  }
+  return null;
+}
 function lastFilled(map,col,s,n,ok){
   for(let i=n-1;i>=0;i--){
     const r=map.get(ymd(addDays(s,i)));
@@ -801,16 +810,18 @@ function reportFor(g){
     const thuP=cmp(D.flow,2),chiP=cmp(D.out,6);
     const net=thu-chi,netP=(thuP==null||chiP==null)?null:thuP-chiP;
     const f=v=>fmtN(v,0);
-    const endBal=lastFilled(D.flow,4,p.s,n,finFilled);
+    const endBal=lastFilled(D.flow,4,p.s,n,finFilled),begBal=firstFilled(D.flow,1,p.s,n,finFilled);
     const nf=Math.max(1,countFilled(D.flow,p.s,n,finFilled));
     const debt=sumRange(D.flow,5,p.s,n).sum;
     const rows=[
       ['Total inflow',f(thu),deltaHTML(thu,thuP),f(thu/nf)],
-      ['Total outflow',f(chi),deltaHTML(chi,chiP,true),f(chi/nf)],
-      ['Net cash flow','<span class="'+(net<0?'bad':'')+'">'+f(net)+'</span>',netP!=null?deltaHTML(net,netP):'<span class="muted">—</span>',f(net/nf)]];
+      ['Total outflow',f(chi),deltaHTML(chi,chiP,true),f(chi/nf)]];
     if(debt>0)rows.push(['Financial obligations',f(debt),'—',f(debt/nf)]);
+    const chg=(begBal!=null&&endBal!=null)?endBal-begBal:null;
+    h+='<div class="kv"><span>Opening balance</span><b class="num">'+(begBal!=null?f(begBal)+' ₫':'—')+'</b></div>'+
+      '<div class="kv"><span>Closing balance</span><b class="num">'+(endBal!=null?f(endBal)+' ₫':'—')+'</b></div>'+
+      '<div class="kv"><span>Change</span><b class="num '+(chg!=null&&chg<0?'bad':'')+'">'+(chg!=null?(chg>0?'+':'')+f(chg)+' ₫'+(begBal?' ('+(chg>0?'+':'')+fmtN(chg/Math.abs(begBal)*100,1)+'%)':''):'—')+'</b></div>';
     h+=tbl(['Metric','Actual','vs previous','Avg/day'],rows);
-    h+='<div class="kv"><span>Closing balance</span><b class="num">'+(endBal!=null?f(endBal)+' ₫':'—')+'</b></div>';
     if(chi>0){
       const gr=[];
       D.cats.forEach((nm,i)=>{const v=sumRange(D.out,1+i,p.s,n).sum,pv=cmp(D.out,1+i);if(v>0||(pv||0)>0)gr.push([esc(nm),f(v),chi>0?Math.round(v/chi*100)+'%':'—',deltaHTML(v,pv,true)]);});
