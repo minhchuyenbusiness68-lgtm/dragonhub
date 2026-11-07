@@ -505,7 +505,7 @@ const QF={
   sale:{tab:'saleMeasure',dcol:'B',first:2,last:1000,cols:{calls:['D','Contacted'],leads:['E','Interested'],appt:['F','Appointments'],meet:['G','Meetings'],deal:['H','Deal']},zero:[]}
 };
 const QSHEET={book:'ceo',run:'ceo',sets:'ceo',read:'ceo',sleep:'ceo',rel:'ceo',calls:'sale',leads:'sale',appt:'sale',meet:'sale',deal:'sale'};
-const QKPI={book:25,run:1,sets:12,read:1};
+const QKPI={book:25,run:1,sets:8,read:1};
 const fold=s=>String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d');
 const NW={khong:0,mot:1,hai:2,ba:3,bon:4,nam:5,lam:5,sau:6,bay:7,tam:8,chin:9};
 const hasNW=w=>Object.prototype.hasOwnProperty.call(NW,w);
@@ -642,7 +642,7 @@ const MODES=[['day','Day'],['week','Week'],['month','Month'],['quarter','Quarter
 const SOGRP_LABEL={ceo:'CEO metrics',fin:'Income, spending & cash flow',sale:'Sales metrics'};
 const q=t=>"'"+t.replace(/'/g,"''")+"'";
 /* tabs are looked up by gid, so renaming a tab never breaks the app */
-const GID={ceoDaily:[IDS.ceo,0,'DAILY'],saleMeasure:[IDS.sale,0,'MESURE'],saleTarget:[IDS.sale,2083922373,'MAIN TARGET 2026'],accOut:[IDS.acc,173622054,'CASH OUTFLOW'],accFlow:[IDS.acc,0,'CASH FLOW & LIQUIDITY FORECAST'],accBal:[IDS.acc,845637138,'BALANCE SHEET'],ceoExp:[IDS.ceo,1298062771,'EXPERIENCES']};
+const GID={ceoDaily:[IDS.ceo,0,'DAILY'],saleMeasure:[IDS.sale,0,'MESURE'],saleTarget:[IDS.sale,2083922373,'MAIN TARGET 2026'],accOut:[IDS.acc,173622054,'CASH OUTFLOW'],accFlow:[IDS.acc,0,'CASH FLOW & LIQUIDITY FORECAST'],accBal:[IDS.acc,845637138,'BALANCE SHEET'],ceoExp:[IDS.ceo,1298062771,'EXPERIENCES'],saleStd:[IDS.sale,436424994,'CHARTS']};
 const TT={};
 async function resolveTabs(){
   const tok=tokenGet();if(!tok)return;
@@ -713,19 +713,21 @@ async function getValues(id,range){
 }
 async function fetchAll(){
     await resolveTabs();
-    const [ceo,sale,out,flow,hdr,tgt,bal]=await Promise.all([
+    const [ceo,sale,out,flow,hdr,tgt,bal,std]=await Promise.all([
       getValues(IDS.ceo,q(tabName('ceoDaily'))+'!C2:I400'),
       getValues(IDS.sale,q(tabName('saleMeasure'))+'!B2:H1000'),
       getValues(IDS.acc,q(tabName('accOut'))+'!A2:G400'),
       getValues(IDS.acc,q(tabName('accFlow'))+'!A2:G400'),
       getValues(IDS.acc,q(tabName('accOut'))+'!B1:F1').catch(()=>[]),
       getValues(IDS.sale,q(tabName('saleTarget'))+'!A1:G40').catch(()=>[]),
-      getValues(IDS.acc,q(tabName('accBal'))+'!H2:L200').catch(()=>[])
+      getValues(IDS.acc,q(tabName('accBal'))+'!H2:L200').catch(()=>[]),
+      getValues(IDS.sale,q(tabName('saleStd'))+'!L1:O12').catch(()=>[])
     ]);
+    STD=parseStd(std);
     const tr=(tgt||[]).find(r=>r&&/^(TỔNG|TOTAL)$/.test(String(r[0]||'').trim().toUpperCase()));
     const rev=tr?{t:parseNum(tr[3]),a:parseNum(tr[5])}:null;
     const cats=hdr[0]&&hdr[0].length>=5?hdr[0].slice(0,5).map(x=>String(x||'').trim()||'—'):['OPERATING COSTS','RELATIONSHIP COSTS','DEVELOPMENT COSTS','INVESTMENT COSTS','OTHER COSTS'];
-    return {sig:JSON.stringify([ceo,sale,out,flow,hdr,tgt,bal]),data:{ceo:mapRows(ceo),sale:mapRows(sale),out:mapRows(out),flow:mapRows(flow),bal:mapRows(bal),cats:cats,rev:rev,at:new Date()}};
+    return {sig:JSON.stringify([ceo,sale,out,flow,hdr,tgt,bal,std]),data:{ceo:mapRows(ceo),sale:mapRows(sale),out:mapRows(out),flow:mapRows(flow),bal:mapRows(bal),cats:cats,rev:rev,at:new Date()}};
 }
 async function loadData(force){
   if(S.loading||(S.data&&!force))return;
@@ -770,6 +772,21 @@ function metricRow(o){
   return [nm,o.target>0?f(o.target):'—',f(o.cur),pct!=null?'<span class="'+(pct>=100?'ok':'muted')+'">'+pct+'%</span>':'—',
     deltaHTML(o.cur,o.prev,o.lowerBetter),o.elapsed>0?f(o.cur/o.elapsed):'—'];
 }
+/* Sale standards table (CHARTS tab, columns M:O): item | standard | unit */
+let STD={};
+function parseStd(rows){
+  const o={};
+  (rows||[]).forEach(r=>{
+    const k=fold(r&&r[1]||'').trim(),v=parseNum(r&&r[2]);
+    if(v==null||v<=0)return;
+    if(/cuoc goi/.test(k))o.calls=v;
+    else if(/quan tam/.test(k))o.leads=v;
+    else if(/^hen/.test(k))o.appt=v;
+    else if(/^gap/.test(k))o.meet=v;
+    else if(/^chot|deal/.test(k))o.deal=v;
+  });
+  return o;
+}
 // Tiêu chuẩn thực thi theo tuần do Sếp đặt
 const DAY={book:25,run:1,sets:8,read:1,calls:100,leads:5,meet:0};
 const WK={book:25*7,run:1*5,sets:8*5,read:7,calls:100*7,leads:5*7,meet:3};
@@ -786,6 +803,11 @@ function reportFor(g){
   const base={elapsed:n,mode:S.mode};
   const wk=(daysBetween(p.s,p.e)+1)/7;
   const T=k=>S.mode==='day'?DAY[k]:WK[k]*wk;
+  const SD=Object.assign({calls:100,leads:5,appt:0,meet:3,deal:0},STD);   // sale: bảng tiêu chuẩn trong sheet
+  const tLeads=S.mode==='day'?SD.leads:SD.leads*7*wk;
+  const tAppt=S.mode==='day'||!SD.appt?0:SD.appt*wk;
+  const tMeet=S.mode==='day'||!SD.meet?0:SD.meet*wk;
+  const tDeal=!SD.deal?0:({month:SD.deal,quarter:SD.deal*3,year:SD.deal*12})[S.mode]||0;
   const mr=(title,map,col,extra)=>metricRow(Object.assign({},base,{title:title,cur:sumRange(map,col,p.s,n).sum,prev:cmp(map,col)},extra||{}));
   let h='';
   if(g==='ceo'){
@@ -799,11 +821,11 @@ function reportFor(g){
     h+=gap(Math.max(cov(D.ceo,1),cov(D.ceo,2),cov(D.ceo,3)));
   }else if(g==='sale'){
     h+=tbl(MHEAD,[
-      mr('Contacted',D.sale,2,{unit:'phones',target:stdSum(D.sale,1,p.s,daysBetween(p.s,p.e)+1,100)}),
-      mr('New interested leads',D.sale,3,{unit:'leads',target:T('leads')}),
-      mr('Appointments',D.sale,4,{unit:'meetings'}),
-      mr('Meetings',D.sale,5,{unit:'meetings',target:T('meet')}),
-      mr('Deal',D.sale,6,{unit:'deal'})],2);
+      mr('Contacted',D.sale,2,{unit:'phones',target:stdSum(D.sale,1,p.s,daysBetween(p.s,p.e)+1,SD.calls)}),
+      mr('New interested leads',D.sale,3,{unit:'leads',target:tLeads}),
+      mr('Appointments',D.sale,4,{unit:'appts',target:tAppt}),
+      mr('Meetings',D.sale,5,{unit:'meetings',target:tMeet}),
+      mr('Deal',D.sale,6,{unit:'deals',target:tDeal})],2);
     h+=gap(Math.max(cov(D.sale,2),cov(D.sale,3),cov(D.sale,4),cov(D.sale,5),cov(D.sale,6)));
   }else{
     const thu=sumRange(D.flow,2,p.s,n).sum,chi=sumRange(D.out,6,p.s,n).sum;
@@ -883,7 +905,7 @@ function sheetHTML(){
     '<div class="sh-hd '+n.cls+'"><div class="nm">'+esc(n.name)+(n.g?'<div class="sc">'+SOGRP_LABEL[n.g]+'</div>':'')+'</div><button type="button" class="iconbtn" id="shclose" data-act="close" aria-label="Close">×</button></div>'+
     '<div class="sh-bd" id="shbd">'+(n.g?'':'')+body+'</div></div>';
 }
-const YT={book:9125,run:261,sets:3129};   // chỉ tiêu cả năm 2026: 25 trang/ngày, 5 km/tuần, 12 set/ngày x 5 ngày/tuần = 60 set/tuần
+const YT={book:9125,run:261,sets:2086};   // yearly 2026 standard: 25 pages/day, 5 km/week, 8 sets/day x 5 days/week = 40 sets/week
 function ytdSum(map,col){
   const y=String(today().getFullYear());let t=0;
   map.forEach((r,k)=>{if(k.slice(0,4)===y){const v=parseNum(r[col]);if(v!=null)t+=v;}});
