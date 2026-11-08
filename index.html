@@ -724,7 +724,7 @@ async function fetchAll(){
       getValues(IDS.acc,q(tabName('accOut'))+'!B1:F1').catch(()=>[]),
       getValues(IDS.sale,q(tabName('saleTarget'))+'!A1:G40').catch(()=>[]),
       getValues(IDS.acc,q(tabName('accBal'))+'!H2:L200').catch(()=>[]),
-      getValues(IDS.sale,q(tabName('saleStd'))+'!L1:O12').catch(()=>[])
+      getValues(IDS.sale,q(tabName('saleStd'))+'!A1:Z30').catch(()=>[])
     ]);
     STD=parseStd(std);
     const tr=(tgt||[]).find(r=>r&&/^(TỔNG|TOTAL)$/.test(String(r[0]||'').trim().toUpperCase()));
@@ -778,15 +778,25 @@ function metricRow(o){
 /* Sale standards table (CHARTS tab, columns M:O): item | standard | unit */
 let STD={};
 function parseStd(rows){
+  /* finds each item by its name in any column, takes the first number to its right: survives moving the table */
   const o={};
   (rows||[]).forEach(r=>{
-    const k=fold(r&&r[1]||'').trim(),v=parseNum(r&&r[2]);
-    if(v==null||v<=0)return;
-    if(/cuoc goi/.test(k))o.calls=v;
-    else if(/quan tam/.test(k))o.leads=v;
-    else if(/^hen/.test(k))o.appt=v;
-    else if(/^gap/.test(k))o.meet=v;
-    else if(/^chot|deal/.test(k))o.deal=v;
+    for(let i=0;i<(r||[]).length;i++){
+      const k=fold(r[i]||'').trim();
+      let key=null;
+      if(/^cuoc goi/.test(k))key='calls';
+      else if(/^(kh|khach)\s*quan tam/.test(k))key='leads';
+      else if(/^hen$/.test(k))key='appt';
+      else if(/^gap$/.test(k))key='meet';
+      else if(/^(chot|deal)$/.test(k))key='deal';
+      if(!key)continue;
+      for(let j=i+1;j<r.length;j++){
+        const v=parseNum(r[j]);
+        if(v!=null&&v>0){o[key]=v;break;}
+        if(String(r[j]||'').trim()!=='')break;
+      }
+      break;
+    }
   });
   return o;
 }
