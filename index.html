@@ -504,10 +504,10 @@ function dragWindow(mode,j,j0,lo0,hi0,total,minLen){
 }
 /* ---- Ghi nhanh: đọc câu tiếng Việt (không dùng AI) ---- */
 const QF={
-  ceo:{tab:'ceoDaily',dcol:'C',first:2,last:400,cols:{book:['D','Pages'],run:['E','Km run'],sets:['F','Sets'],read:['G','Goal read-out'],sleep:['H','Bedtime'],rel:['I','New relations']},zero:[]},
+  ceo:{tab:'ceoDaily',dcol:'C',first:2,last:400,cols:{book:['D','Pages'],run:['E','Km run'],sets:['F','Sets'],read:['G','Goal read-out'],wake:['H','Wake time'],sleep:['I','Bedtime'],rel:['J','New relations']},zero:[]},
   sale:{tab:'saleMeasure',dcol:'B',first:2,last:1000,cols:{calls:['D','Contacted'],leads:['E','Interested'],appt:['F','Appointments'],meet:['G','Meetings'],deal:['H','Deal']},zero:[]}
 };
-const QSHEET={book:'ceo',run:'ceo',sets:'ceo',read:'ceo',sleep:'ceo',rel:'ceo',calls:'sale',leads:'sale',appt:'sale',meet:'sale',deal:'sale'};
+const QSHEET={book:'ceo',run:'ceo',sets:'ceo',read:'ceo',sleep:'ceo',wake:'ceo',rel:'ceo',calls:'sale',leads:'sale',appt:'sale',meet:'sale',deal:'sale'};
 const QKPI={book:25,run:1,sets:8,read:1};
 const fold=s=>String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d');
 const NW={khong:0,mot:1,hai:2,ba:3,bon:4,nam:5,lam:5,sau:6,bay:7,tam:8,chin:9};
@@ -535,7 +535,8 @@ const QSYN=[
   ['gap',['cuoc gap','buoi gap','gap truc tiep','gap mat','gap khach hang','gap khach','gap duoc','meetings','meeting','meets','gap']],
   ['deal',['chot deal','chot duoc','chot don','dong deal','ky hop dong','hop dong','chot','deals']],
   ['quanhe',['quan he moi','moi quan he moi','moi quan he','quan he','relations','relation']],
-  ['muctieu',['muc tieu']]
+  ['muctieu',['muc tieu']],
+  ['day',['thuc day vao luc','thuc day luc','thuc day','day vao luc','day luc','tinh day','woke up at','wake up at','woke up','wake up','got up at','get up at','got up','get up','woke','wake']]
 ];
 const QSYNR=QSYN.map(([k,a])=>[k,new RegExp('\\b(?:'+a.slice().sort((x,y)=>y.length-x.length).map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')\\b','g')]);
 function normKW(s){
@@ -561,7 +562,7 @@ function parseQuick(text){
   const pre=/(?:hoan thanh|xong|dat|du)\s+(?:het\s+|toan bo\s+|tat ca\s+)?(?:100\s*%|muctieu|kpi|chi tieu)(?:\s+(?:ceo|kpi|muctieu|chi tieu))*|100\s*%\s*(?:kpi|muctieu|chi tieu)(?:\s+ceo)?|kpi\s+ceo\s+100\s*%/;
   if(pre.test(s)){res.preset=true;s=s.replace(pre,' ');}
   // giờ ngủ
-  const sl=/\bngu\b(?:\s+(?:luc|vao|khoang|la))?\s+(\d{1,2})(?:\s*(?::|#|h|gio)\s*(?:(\d{1,2})(?!\d)(?!\s+(?:trang|km|cay|set|sets|sdt|quanhe|deal|hen|gap))|(ruoi))?)?(?:\s+(sang|toi|dem)\b)?/.exec(s);
+  const sl=/\bngu\b(?:\s+(?:luc|vao|khoang|la))?\s+(\d{1,2})(?:\s*(?::|#|h|gio)\s*(?:(\d{1,2})(?!\d)(?!\s+(?:trang|km|cay|set|sets|sdt|quanhe|deal|hen|gap))|(ruoi))?)?(?:\s*(sang|toi|dem)\b)?/.exec(s);
   if(sl){
     let hr=+sl[1];const mn=sl[3]?30:sl[2]==null?0:+sl[2];
     s=s.replace(sl[0],' ');
@@ -572,6 +573,20 @@ function parseQuick(text){
       else if(!sl[4]&&hr>=8&&hr<=11)hr+=12;
       res.items.push({key:'sleep',sheet:'ceo',val:pad(hr)+':'+pad(mn),mode:'set'});
     }
+  }
+  // giờ thức dậy
+  const wu=/\bday\b(?:\s+(?:luc|vao|khoang|la))?\s+(\d{1,2})\s*(?::|#|h|gio)\s*(?:(\d{1,2})(?!\d)(?!\s+(?:trang|km|cay|set|sets|sdt|quanhe|deal|hen|gap))|(ruoi))?(?:\s*(sang|chieu|toi)\b)?/.exec(s);
+  if(wu){
+    let hr=+wu[1];const mn=wu[3]?30:wu[2]==null?0:+wu[2];
+    s=s.replace(wu[0],' ');
+    if(hr>23||mn>59)res.unknown.push('Invalid wake time');
+    else{
+      if((wu[4]==='chieu'||wu[4]==='toi')&&hr<12)hr+=12;
+      res.items.push({key:'wake',sheet:'ceo',val:pad(hr)+':'+pad(mn),mode:'set'});
+    }
+  }else{
+    const wm=/\bday\b(?:\s+(?:luc|vao|khoang|la))?\s+\d{1,2}(?!\d)(?!\s+(?:trang|km|cay|set|sets|sdt|quanhe|deal|hen|gap))/.exec(s);
+    if(wm){s=s.replace(wm[0],' ');res.unknown.push('Wake time needs "h", for example: wake up at 6h30');}
   }
   // đọc to mục tiêu
   const rd=/\bdoc\b(?:\s+to)?\s+muctieu(?:\s+(\d+))?/.exec(s);
@@ -601,7 +616,7 @@ function parseQuick(text){
   if(res.preset){
     Object.keys(QKPI).forEach(k=>{if(!res.items.some(x=>x.key===k))res.items.push({key:k,sheet:'ceo',val:QKPI[k],mode:'atleast'});});
   }
-  if(!res.items.length&&!res.preset&&!res.unknown.some(u=>/Invalid bedtime/.test(u))&&String(text||'').trim())res.lesson=String(text).trim();
+  if(!res.items.length&&!res.preset&&!res.unknown.some(u=>/Invalid (?:bedtime|wake time)|Wake time needs/.test(u))&&String(text||'').trim())res.lesson=String(text).trim();
   return res;
 }
 function planCell(mode,cur,val){
@@ -829,7 +844,7 @@ function reportFor(g){
       mr('Km run',D.ceo,2,{unit:'km',dec:1,target:T('run')}),
       mr('Sets',D.ceo,3,{unit:'sets',target:T('sets')}),
       mr('Goal read-out',D.ceo,4,{unit:'times',target:T('read')})],2);
-    const bt=avgBedtime(bedtimes(D.ceo,5,p.s,n));
+    const bt=avgBedtime(bedtimes(D.ceo,6,p.s,n));
     h+='<div class="kv"><span>Average bedtime</span><b class="num">'+(bt||'—')+'</b></div>';
     h+=gap(Math.max(cov(D.ceo,1),cov(D.ceo,2),cov(D.ceo,3)));
   }else if(g==='sale'){
@@ -1289,7 +1304,7 @@ function qRender(){
   let r=qEl('qroot');if(!r){r=document.createElement('div');r.id='qroot';document.body.appendChild(r);}
   if(!qs.open){r.innerHTML='';return;}
   r.innerHTML='<div class="scrim" data-act="qclose"></div><div class="qe" role="dialog" aria-label="Quick entry"><div class="qe-h"><span>Quick entry</span><button type="button" class="iconbtn" data-act="qclose" aria-label="Close">×</button></div>'+
-    '<textarea id="qt" rows="5" placeholder="CEO: pages, km run, sets, read out the goal, bedtime, new relations&#10;Sale: contacted, interested, appointments, meetings, deals" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
+    '<textarea id="qt" rows="5" placeholder="CEO: pages, km run, sets, read out the goal, wake time, bedtime, new relations&#10;Sale: contacted, interested, appointments, meetings, deals" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>'+
     '<div class="qe-d"><button type="button" class="chip" data-act="qday" data-d="0" id="qd0">Today</button><button type="button" class="chip" data-act="qday" data-d="-1" id="qd1">Yesterday</button></div>'+
     '<div class="qp" id="qp"></div>'+
     '<div class="qe-f"><button type="button" class="btn" id="qundo" data-act="qundo" hidden>Undo</button><button type="button" class="btn primary" id="qw" data-act="qwrite" disabled>Save</button></div></div>';
@@ -1358,11 +1373,11 @@ async function qWrite(){
       const row=F.first+ri,ks=Object.keys(F.cols),rng=q(tabName(F.tab))+'!'+F.cols[ks[0]][0]+row+':'+F.cols[ks[ks.length-1]][0]+row;
       const [fm,fx]=await Promise.all([getRaw(id,rng,'FORMATTED_VALUE'),getRaw(id,rng,'FORMULA')]);
       const cur={};
-      ks.forEach((k,i)=>{const raw=(fx[0]||[])[i],f=typeof raw==='string'&&raw.charAt(0)==='=';cur[k]={num:k==='sleep'?null:parseNum((fm[0]||[])[i]),raw:raw==null?'':raw,f:f};});
+      ks.forEach((k,i)=>{const raw=(fx[0]||[])[i],f=typeof raw==='string'&&raw.charAt(0)==='=';cur[k]={num:(k==='sleep'||k==='wake')?null:parseNum((fm[0]||[])[i]),raw:raw==null?'':raw,f:f};});
       const plan=planSheet(sh,pr.items,cur);
       const bf=plan.find(p=>p.formula);
       if(bf)throw {code:'formula',message:'Cell '+bf.label+' contains a formula and was not overwritten.'};
-      const bt=plan.find(p=>p.key!=='sleep'&&!p.def&&p.cur==null&&p.prev!==''&&p.prev!=null);
+      const bt=plan.find(p=>p.key!=='sleep'&&p.key!=='wake'&&!p.def&&p.cur==null&&p.prev!==''&&p.prev!=null);
       if(bt)throw {code:'text',message:'Cell '+bt.label+' holds non-numeric content ('+bt.prev+') and was not overwritten.'};
       plans.push({sh:sh,id:id,F:F,row:row,plan:plan});
     }
@@ -1370,7 +1385,7 @@ async function qWrite(){
     qs.undo={plans:plans.map(p=>({id:p.id,tab:tabName(p.F.tab),row:p.row,cells:p.plan.map(c=>({col:c.col,prev:c.prev}))}))};
     let h='<div class="qn">Saved to '+fmtDMY(day)+'</div>';
     plans.forEach(p=>{h+='<div class="qs">'+(p.sh==='ceo'?'CEO':'Sale')+'</div>';p.plan.forEach(c=>{
-      h+='<div class="qr"><span>'+esc(c.label)+'</span><b>'+(c.key==='sleep'?esc(c.next):(c.def?'0 (default)':fmtN(c.cur||0,2)+' → '+fmtN(c.next,2)))+'</b></div>';});});
+      h+='<div class="qr"><span>'+esc(c.label)+'</span><b>'+((c.key==='sleep'||c.key==='wake')?esc(c.next):(c.def?'0 (default)':fmtN(c.cur||0,2)+' → '+fmtN(c.next,2)))+'</b></div>';});});
     qs.msg=h;ta.value='';
     qs.busy=false;qPrev();
     try{const r=await fetchAll();S.data=r.data;S.sig=r.sig;if(S.view==='home'&&document.getElementById('hov'))paint();}catch(e){}
