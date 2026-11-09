@@ -440,6 +440,26 @@ function bedtimes(map,col,s,n){
   for(let i=0;i<n;i++){const r=map.get(ymd(addDays(s,i)));const m=r?minutesOf(r[col]):null;if(m!=null)out.push(m);}
   return out;
 }
+function wakeTimes(map,col,s,n){
+  const out=[];
+  for(let i=0;i<n;i++){const r=map.get(ymd(addDays(s,i)));const m=r?minutesOf(r[col]):null;if(m!=null)out.push(m);}
+  return out;
+}
+// đêm kết thúc vào sáng ngày D: giờ ngủ ở dòng ngày D-1, giờ thức ở dòng ngày D
+function sleepMinutes(map,wcol,bcol,s,n){
+  const out=[];
+  for(let i=0;i<n;i++){
+    const w=map.get(ymd(addDays(s,i))),b=map.get(ymd(addDays(s,i-1)));
+    const wm=w?minutesOf(w[wcol]):null,bm=b?minutesOf(b[bcol]):null;
+    if(wm==null||bm==null)continue;
+    const d=wm+1440-(bm<720?bm+1440:bm);
+    if(d>=120&&d<=840)out.push(d);
+  }
+  return out;
+}
+const avgMin=l=>l.length?Math.round(l.reduce((a,b)=>a+b,0)/l.length):null;
+const fmtClock=m=>m==null?null:pad(Math.floor(m/60))+':'+pad(m%60);
+const fmtDur=m=>m==null?null:Math.floor(m/60)+'h '+pad(m%60)+'m';
 function stdSum(map,col,s,len,fb){
   let sum=0;
   for(let i=0;i<len;i++){const r=map.get(ymd(addDays(s,i)));const v=r?parseNum(r[col]):null;sum+=(v!=null&&v>0)?v:fb;}
@@ -844,8 +864,13 @@ function reportFor(g){
       mr('Km run',D.ceo,2,{unit:'km',dec:1,target:T('run')}),
       mr('Sets',D.ceo,3,{unit:'sets',target:T('sets')}),
       mr('Goal read-out',D.ceo,4,{unit:'times',target:T('read')})],2);
+    const isDay=S.mode==='day';
     const bt=avgBedtime(bedtimes(D.ceo,6,p.s,n));
-    h+='<div class="kv"><span>Average bedtime</span><b class="num">'+(bt||'—')+'</b></div>';
+    const wl=wakeTimes(D.ceo,5,p.s,n),sl=sleepMinutes(D.ceo,5,6,p.s,n);
+    const nn=l=>isDay?'':' · '+l.length+(l.length===1?' night':' nights');
+    h+='<div class="kv"><span>'+(isDay?'Sleep (night before)':'Average sleep')+nn(sl)+'</span><b class="num">'+(fmtDur(avgMin(sl))||'—')+'</b></div>';
+    h+='<div class="kv"><span>'+(isDay?'Wake time':'Average wake time')+nn(wl)+'</span><b class="num">'+(fmtClock(avgMin(wl))||'—')+'</b></div>';
+    h+='<div class="kv"><span>'+(isDay?'Bedtime':'Average bedtime')+'</span><b class="num">'+(bt||'—')+'</b></div>';
     h+=gap(Math.max(cov(D.ceo,1),cov(D.ceo,2),cov(D.ceo,3)));
   }else if(g==='sale'){
     h+=tbl(MHEAD,[
