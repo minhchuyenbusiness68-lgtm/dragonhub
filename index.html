@@ -440,6 +440,19 @@ function bedtimes(map,col,s,n){
   for(let i=0;i<n;i++){const r=map.get(ymd(addDays(s,i)));const m=r?minutesOf(r[col]):null;if(m!=null)out.push(m);}
   return out;
 }
+// sleep duration of the night ending on each wake day: bedtime of the day before -> wake time of that day
+function sleepDurs(map,s,n){
+  const out=[];
+  for(let i=0;i<n;i++){
+    const d=addDays(s,i),w=map.get(ymd(d)),b=map.get(ymd(addDays(d,-1)));
+    const wm=w?minutesOf(w[5]):null,bm=b?minutesOf(b[6]):null;
+    if(wm==null||bm==null)continue;
+    const dur=1440+wm-(bm<720?bm+1440:bm);
+    if(dur>=120&&dur<=960)out.push(dur);
+  }
+  return out;
+}
+const fmtHM=m=>Math.floor(m/60)+'h '+pad(m%60)+'m';
 function stdSum(map,col,s,len,fb){
   let sum=0;
   for(let i=0;i<len;i++){const r=map.get(ymd(addDays(s,i)));const v=r?parseNum(r[col]):null;sum+=(v!=null&&v>0)?v:fb;}
@@ -839,6 +852,8 @@ function reportFor(g){
       mr('Goal read-out',D.ceo,4,{unit:'times',target:T('read')})],2);
     const bt=avgBedtime(bedtimes(D.ceo,6,p.s,n));
     const wl=bedtimes(D.ceo,5,p.s,n),wt=wl.length?(function(){const m=Math.round(wl.reduce((x,y)=>x+y,0)/wl.length);return pad(Math.floor(m/60))+':'+pad(m%60);})():null;
+    const sd=sleepDurs(D.ceo,p.s,n),sv=sd.length?fmtHM(Math.round(sd.reduce((x,y)=>x+y,0)/sd.length)):null;
+    h+='<div class="kv"><span>'+(n===1?'Sleep (last night)':'Average sleep per night')+'</span><b class="num">'+(sv||'—')+'</b></div>';
     h+='<div class="kv"><span>'+(n===1?'Wake time':'Average wake time')+'</span><b class="num">'+(wt||'—')+'</b></div>';
     h+='<div class="kv"><span>'+(n===1?'Bedtime':'Average bedtime')+'</span><b class="num">'+(bt||'—')+'</b></div>';
     h+=gap(Math.max(cov(D.ceo,1),cov(D.ceo,2),cov(D.ceo,3)));
